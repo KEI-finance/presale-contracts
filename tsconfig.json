@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "outDir": "build",
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": [
+        "./src/*"
+      ],
+      "ethers": ["./node_modules/ethers"],
+      "ethers/*": ["./node_modules/ethers/*"],
+    }
+  },
+  "include": [
+    "./node_modules/@types/node/index.d.ts",
+    "./contracts",
+    "./configs",
+    "./scripts",
+    "./tests",
+    "./types",
+    "./src",
+    "./abi",
+  ],
+  "files": [
+    "./hardhat.config.ts"
+  ]
+}

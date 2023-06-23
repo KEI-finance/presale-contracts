@@ -1,0 +1,25 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain-types
+types
+
+#Hardhat files
+cache
+artifacts
+abi
+
+.DS_Store
+build
+
+.env
+.idea
+package
+
+contracts.json
+cache_hardhat
+out
+
+settings.ts
+settings.js
