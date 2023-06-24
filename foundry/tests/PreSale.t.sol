@@ -15,7 +15,7 @@ contract PreSaleTest is Test {
     address BOB;
 
     function setUp() public {
-        preSale = new PreSale();
+        preSale = new PreSale(10 days);
 
         assertEq(preSale.owner(), address(this));
 
@@ -48,6 +48,30 @@ contract PreSaleTest_balanceOf is PreSaleTest {
     }
 }
 
+contract PreSaleTest_setRaiseDeadline is PreSaleTest {
+    event DeadlineUpdated(uint256 prevDeadline, uint256 newDeadline, address indexed sender);
+
+    function test_success() external {
+        preSale.setRaiseDeadline(1 days);
+        assertEq(preSale.raiseDeadline(), 1 days);
+    }
+
+    function test_rejects_whenNotOwner() external {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        vm.prank(ALICE);
+        preSale.setRaiseDeadline(1 days);
+    }
+
+    function test_emits_DeadlineUpdated() external {
+        vm.expectEmit(address(preSale));
+
+        emit DeadlineUpdated(10 days, 1 days, address(this));
+
+        preSale.setRaiseDeadline(1 days);
+    }
+}
+
 contract PreSaleTest_receive is PreSaleTest {
     event Deposit(uint256 amount, address indexed sender);
 
@@ -65,6 +89,17 @@ contract PreSaleTest_receive is PreSaleTest {
         assertEq(ALICE.balance, 80 ether);
         assertEq(BOB.balance, 80 ether);
         assertEq(preSale.totalRaised(), 40 ether);
+    }
+
+    function test_rejects_whenRaiseClosed() external {
+        bool _success;
+
+        vm.warp(10 days + 1);
+
+        vm.expectRevert("RAISE_CLOSED");
+
+        vm.prank(ALICE);
+        (_success,) = address(preSale).call{value: 10 ether}("");
     }
 
     function test_emits_Deposit() external {
@@ -143,6 +178,15 @@ contract PreSaleTest_refund is PreSaleTest {
 
         vm.expectRevert("ZERO_BALANCE");
         preSale.refund(payable(address(_invalidAddress)));
+    }
+
+    function test_rejects_whenRaiseClosed() external {
+        vm.warp(10 days + 1);
+
+        vm.expectRevert("RAISE_CLOSED");
+
+        vm.prank(ALICE);
+        preSale.refund(payable(address(ALICE)));
     }
 
     function test_emits_Refund() external {
