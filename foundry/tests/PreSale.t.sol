@@ -63,6 +63,14 @@ contract PreSaleTest_setRaiseDeadline is PreSaleTest {
         preSale.setRaiseDeadline(1 days);
     }
 
+    function test_rejects_whenInvalidRaiseDeadline() external {
+        vm.warp(5 days);
+
+        vm.expectRevert("INVALID_RAISE_DEADLINE");
+
+        preSale.setRaiseDeadline(1 days);
+    }
+
     function test_emits_DeadlineUpdated() external {
         vm.expectEmit(address(preSale));
 

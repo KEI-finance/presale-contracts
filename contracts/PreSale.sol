@@ -29,8 +29,11 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
     }
 
     function setRaiseDeadline(uint256 _newDeadline) external override onlyOwner {
+        require(_newDeadline >= block.timestamp, "INVALID_RAISE_DEADLINE");
+
         uint256 _prevDeadline = _raiseDeadline;
         _raiseDeadline = _newDeadline;
+
         emit DeadlineUpdated(_prevDeadline, _newDeadline, msg.sender);
     }
 
