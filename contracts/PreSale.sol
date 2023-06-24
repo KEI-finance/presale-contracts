@@ -16,19 +16,19 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
         _raiseDeadline = _initialDeadline;
     }
 
-    function totalRaised() public view returns (uint256) {
+    function totalRaised() external view override returns (uint256) {
         return address(this).balance;
     }
 
-    function balanceOf(address _account) external view returns (uint256) {
+    function balanceOf(address _account) external view override returns (uint256) {
         return _balances[_account];
     }
 
-    function raiseDeadline() external view returns (uint256) {
+    function raiseDeadline() external view override returns (uint256) {
         return _raiseDeadline;
     }
 
-    function setRaiseDeadline(uint256 _newDeadline) external onlyOwner {
+    function setRaiseDeadline(uint256 _newDeadline) external override onlyOwner {
         uint256 _prevDeadline = _raiseDeadline;
         _raiseDeadline = _newDeadline;
         emit DeadlineUpdated(_prevDeadline, _newDeadline, msg.sender);
@@ -44,8 +44,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
         emit Deposit(amount, msg.sender);
     }
 
-    function withdraw(address payable _to) external onlyOwner {
-        uint256 amount = totalRaised();
+    function withdraw(address payable _to) external override onlyOwner {
+        uint256 amount = address(this).balance;
 
         (bool success,) = _to.call{value: amount}("");
         require(success, "FAILED_WITHDRAW");
@@ -53,7 +53,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
         emit Withdrawal(amount, _to, msg.sender);
     }
 
-    function refund(address payable _to) external nonReentrant {
+    function refund(address payable _to) external override nonReentrant {
         require(block.timestamp <= _raiseDeadline, "RAISE_CLOSED");
         require(_balances[msg.sender] > 0, "ZERO_BALANCE");
 

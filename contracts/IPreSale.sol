@@ -10,4 +10,16 @@ interface IPreSale {
     event Withdrawal(uint256 amount, address to, address indexed sender);
 
     event Refund(uint256 amount, address indexed sender);
+
+    function totalRaised() external view returns (uint256);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function raiseDeadline() external view returns (uint256);
+
+    function setRaiseDeadline(uint256 newDeadline) external;
+
+    function withdraw(address payable to) external;
+
+    function refund(address payable to) external;
 }
