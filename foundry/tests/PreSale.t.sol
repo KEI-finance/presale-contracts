@@ -138,6 +138,13 @@ contract PreSaleTest_refund is PreSaleTest {
         preSale.refund(payable(address(_erc20)));
     }
 
+    function test_rejects_whenZeroBalance() external {
+        address _invalidAddress = makeAddr("invalidAddress");
+
+        vm.expectRevert("ZERO_BALANCE");
+        preSale.refund(payable(address(_invalidAddress)));
+    }
+
     function test_emits_Refund() external {
         vm.expectEmit(address(preSale));
         emit Refund(10 ether, ALICE);
