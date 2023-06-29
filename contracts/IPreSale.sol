@@ -9,24 +9,19 @@ interface IPreSale {
 
     event WithdrawToUpdated(address prevWithdrawTo, address newWithdrawTo, address sender);
 
+    event RoundConfigUpdated(uint8 roundId, uint256 minDepositUSD, uint256 maxDepositUSD, address indexed sender);
+
     event Deposit(address indexed asset, uint256 amount, address indexed sender);
 
     event Withdrawal(uint256 amount, address to, address indexed sender);
 
-    struct UserDeposit {
-        uint8 roundId;
-        address asset;
-        uint256 amount;
-        address sender;
-    }
-
     struct Round {
-        uint8 id;
         uint256 startsAt;
         uint256 endsAt;
-        uint256 minTotalDeposit;
-        uint256 maxTotalDeposit;
-        mapping(address => uint256) raisedPerAsset;
+        uint256 minDepositUSD;
+        uint256 maxDepositUSD;
+        mapping(address => mapping(address => uint256)) deposits;
+        mapping(address => uint256) totalDepositsPerAsset;
     }
 
     function depositETH(uint256 amount) external payable;

@@ -11,7 +11,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "./IPreSale.sol";
 
 contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
-
     address public immutable USDC;
     address public immutable DAI;
 
@@ -21,6 +20,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(address => uint256) private _balances;
 
     mapping(uint256 => Round) private _rounds;
+
+    uint256 private _totalRaisedUSD;
 
     address public override withdrawTo;
 
@@ -51,24 +52,54 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         _withdrawTo = _newWithdrawTo;
     }
 
+    function updateRoundConfig(uint8 _roundId, uint256 _minDepositUSD, uint256 _maxDepositUsd) external onlyOwner {
+        emit RoundConfigUpdated(_roundId, _minDepositUSD, _maxDepositUsd, msg.sender);
+
+        _rounds[_roundId].minDepositUSD = _minDepositUSD;
+        _rounds[_roundId].maxDepositUSD = _maxDepositUsd;
+    }
+
     function depositETH() external payable override whenNotPaused {
-        // state change
+        // checks
+
+        uint8 _currentRound = currentRound();
+
+        _rounds[_currentRound].deposits[msg.sender][address(0)] += amount;
+        _rounds[_currentRound].totalDepositsPerAsset[address(0)] += amount;
+
+        // convert eth to usd using oracle, increase _totalRaisedUSD by value
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
+        // checks
+
+        uint8 _currentRound = currentRound();
+
+        _rounds[_currentRound].deposits[msg.sender][USDC] += amount;
+        _rounds[_currentRound].totalDepositsPerAsset[USDC] += amount;
+
+        _totalRaisedUSD += amount;
+
         IERC20(USDC).transferFrom(msg.sender, address(this), amount);
     }
 
     function depositDAI(uint256 amount) external override whenNotPaused {
+        // checks
+
+        uint8 _currentRound = currentRound();
+
+        _rounds[_currentRound].deposits[msg.sender][DAI] += amount;
+        _rounds[_currentRound].totalDepositsPerAsset[DAI] += amount;
+
+        _totalRaisedUSD += amount;
+
         IERC20(DAI).transferFrom(msg.sender, address(this), amount);
     }
 
     receive() external payable whenNotPaused {
         // checks
 
-        uint256 amount = msg.value;
-
-        emit Deposit(amount, msg.sender);
+        emit Deposit(msg.value, address(0), msg.sender);
     }
 
     function withdraw() external override whenNotPaused onlyOwner {

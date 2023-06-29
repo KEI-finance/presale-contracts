@@ -9,4 +9,8 @@ remappings = [
     "hardhat/=node_modules/hardhat/",
 ]
 
+[fmt]
+line_length = 120
+tab_width = 4
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
