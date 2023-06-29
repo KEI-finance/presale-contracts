@@ -24,6 +24,8 @@ interface IPreSale {
         mapping(address => uint256) totalDepositsPerAsset;
     }
 
+    function totalRaisedUSD() external view returns (uint256);
+
     function depositETH(uint256 amount) external payable;
 
     function depositUSDC(uint256 amount) external;

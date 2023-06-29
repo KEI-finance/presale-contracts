@@ -39,6 +39,10 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         _setWithdrawTo(withdrawTo_);
     }
 
+    function totalRaisedUSD() external view returns (uint256) {
+        return _totalRaisedUSD;
+    }
+
     function updateDates(uint256 _newStartsAt, uint256 _newEndsAt) external onlyOwner {
         emit DatesUpdated(_startsAt, _endsAt, _newStartsAt, _newEndsAt, msg.sender);
 
