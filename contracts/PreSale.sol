@@ -2,6 +2,8 @@
 
 pragma solidity =0.8.9;
 
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -18,16 +20,20 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
     mapping(address => uint256) private _balances;
 
-    mapping(uint256 => Round) private rounds;
+    mapping(uint256 => Round) private _rounds;
 
     address public override withdrawTo;
 
-    constructor(uint256 startsAt_, uint256 endsAt_, address withdrawTo_, address USDC_, address DAI_) {
+    AggregatorV3Interface public oracle;
+
+    constructor(uint256 startsAt_, uint256 endsAt_, address withdrawTo_, address USDC_, address DAI_, address oracle_) {
         _startsAt = startsAt_;
         _endsAt = endsAt_;
 
         USDC = USDC_;
         DAI = DAI_;
+
+        oracle = AggregatorV3Interface(oracle_);
 
         _setWithdrawTo(withdrawTo_);
     }
@@ -45,12 +51,22 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         _withdrawTo = _newWithdrawTo;
     }
 
+    function depositETH() external payable override whenNotPaused {
+        // state change
+    }
+
+    function depositUSDC(uint256 amount) external override whenNotPaused {
+        IERC20(USDC).transferFrom(msg.sender, address(this), amount);
+    }
+
+    function depositDAI(uint256 amount) external override whenNotPaused {
+        IERC20(DAI).transferFrom(msg.sender, address(this), amount);
+    }
+
     receive() external payable whenNotPaused {
         // checks
 
         uint256 amount = msg.value;
-
-        _balances[msg.sender] += amount;
 
         emit Deposit(amount, msg.sender);
     }
