@@ -4,41 +4,49 @@ pragma solidity =0.8.9;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./IPreSale.sol";
 
-contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
-    uint256 private _raiseDeadline;
+contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
+
+    address public immutable USDC;
+    address public immutable DAI;
+
+    uint256 private _startsAt;
+    uint256 private _endsAt;
 
     mapping(address => uint256) private _balances;
 
-    constructor(uint256 _initialDeadline) {
-        _raiseDeadline = _initialDeadline;
+    mapping(uint256 => Round) private rounds;
+
+    address public override withdrawTo;
+
+    constructor(uint256 startsAt_, uint256 endsAt_, address withdrawTo_, address USDC_, address DAI_) {
+        _startsAt = startsAt_;
+        _endsAt = endsAt_;
+
+        USDC = USDC_;
+        DAI = DAI_;
+
+        _setWithdrawTo(withdrawTo_);
     }
 
-    function totalRaised() external view override returns (uint256) {
-        return address(this).balance;
+    function updateDates(uint256 _newStartsAt, uint256 _newEndsAt) external onlyOwner {
+        emit DatesUpdated(_startsAt, _endsAt, _newStartsAt, _newEndsAt, msg.sender);
+
+        _startsAt = _newStartsAt;
+        _endsAt = _newEndsAt;
     }
 
-    function balanceOf(address _account) external view override returns (uint256) {
-        return _balances[_account];
+    function setWithdrawTo(address _newWithdrawTo) external onlyOwner {
+        emit WithdrawToUpdated(_withdrawTo, _newWithdrawTo, msg.sender);
+
+        _withdrawTo = _newWithdrawTo;
     }
 
-    function raiseDeadline() external view override returns (uint256) {
-        return _raiseDeadline;
-    }
-
-    function setRaiseDeadline(uint256 _newDeadline) external override onlyOwner {
-        require(_newDeadline >= block.timestamp, "INVALID_RAISE_DEADLINE");
-
-        uint256 _prevDeadline = _raiseDeadline;
-        _raiseDeadline = _newDeadline;
-
-        emit DeadlineUpdated(_prevDeadline, _newDeadline, msg.sender);
-    }
-
-    receive() external payable {
-        require(block.timestamp <= _raiseDeadline, "RAISE_CLOSED");
+    receive() external payable whenNotPaused {
+        // checks
 
         uint256 amount = msg.value;
 
@@ -47,26 +55,19 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard {
         emit Deposit(amount, msg.sender);
     }
 
-    function withdraw(address payable _to) external override onlyOwner {
+    function withdraw() external override whenNotPaused onlyOwner {
         uint256 amount = address(this).balance;
 
-        (bool success,) = _to.call{value: amount}("");
+        (bool success,) = _withdrawTo.call{value: amount}("");
         require(success, "FAILED_WITHDRAW");
 
-        emit Withdrawal(amount, _to, msg.sender);
+        emit Withdrawal(amount, _withdrawTo, msg.sender);
     }
 
-    function refund(address payable _to) external override nonReentrant {
-        require(block.timestamp <= _raiseDeadline, "RAISE_CLOSED");
-        require(_balances[msg.sender] > 0, "ZERO_BALANCE");
+    function _setWithdrawTo(address account) private {
+        require(account != address(0), "INVALID_WITHDRAW_TO");
 
-        uint256 amount = _balances[msg.sender];
-
-        _balances[msg.sender] = 0;
-
-        (bool success,) = _to.call{value: amount}("");
-        require(success, "FAILED_REFUND");
-
-        emit Refund(amount, msg.sender);
+        emit WithdrawToUpdated(withdrawTo, account, msg.sender);
+        withdrawTo = account;
     }
 }

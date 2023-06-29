@@ -3,23 +3,29 @@
 pragma solidity ^0.8.9;
 
 interface IPreSale {
-    event DeadlineUpdated(uint256 prevDeadline, uint256 newDeadline, address indexed sender);
+    event DatesUpdated(
+        uint256 prevStartsAt, uint256 prevEndsAt, uint256 newStartsAt, uint256 newEndsAt, address indexed sender
+    );
+
+    event WithdrawToUpdated(address prevWithdrawTo, address newWithdrawTo, address sender);
 
     event Deposit(uint256 amount, address indexed sender);
 
     event Withdrawal(uint256 amount, address to, address indexed sender);
 
-    event Refund(uint256 amount, address indexed sender);
+    struct Contribution {
+        address asset;
+        uint256 amount;
+        address sender;
+    }
 
-    function totalRaised() external view returns (uint256);
+    struct Round {
+        uint8 id;
+        uint256 startsAt;
+        uint256 endsAt;
+        mapping(address => uint256) assetsRaised;
+        Contribution[] contributions;
+    }
 
-    function balanceOf(address account) external view returns (uint256);
-
-    function raiseDeadline() external view returns (uint256);
-
-    function setRaiseDeadline(uint256 newDeadline) external;
-
-    function withdraw(address payable to) external;
-
-    function refund(address payable to) external;
+    function withdraw() external;
 }
