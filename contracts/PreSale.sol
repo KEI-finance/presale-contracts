@@ -17,9 +17,9 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     uint256 private _startsAt;
     uint256 private _endsAt;
 
-    mapping(address => uint256) private _balances;
+    uint8 private _currentRound;
 
-    mapping(uint256 => Round) private _rounds;
+    mapping(uint8 => Round) private _rounds;
 
     uint256 private _totalRaisedUSD;
 
@@ -37,6 +37,10 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         oracle = AggregatorV3Interface(oracle_);
 
         _setWithdrawTo(withdrawTo_);
+    }
+
+    function currentRound() external view returns (uint8) {
+        return _currentRound;
     }
 
     function totalRaisedUSD() external view returns (uint256) {
@@ -66,8 +70,6 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     function depositETH() external payable override whenNotPaused {
         // checks
 
-        uint8 _currentRound = currentRound();
-
         _rounds[_currentRound].deposits[msg.sender][address(0)] += amount;
         _rounds[_currentRound].totalDepositsPerAsset[address(0)] += amount;
 
@@ -76,8 +78,6 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
         // checks
-
-        uint8 _currentRound = currentRound();
 
         _rounds[_currentRound].deposits[msg.sender][USDC] += amount;
         _rounds[_currentRound].totalDepositsPerAsset[USDC] += amount;
@@ -90,8 +90,6 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     function depositDAI(uint256 amount) external override whenNotPaused {
         // checks
 
-        uint8 _currentRound = currentRound();
-
         _rounds[_currentRound].deposits[msg.sender][DAI] += amount;
         _rounds[_currentRound].totalDepositsPerAsset[DAI] += amount;
 
@@ -103,7 +101,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     receive() external payable whenNotPaused {
         // checks
 
-        emit Deposit(msg.value, address(0), msg.sender);
+        emit Deposit(_currentRound, address(0),msg.value,  msg.sender);
     }
 
     function withdraw() external override whenNotPaused onlyOwner {

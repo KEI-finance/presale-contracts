@@ -11,7 +11,7 @@ interface IPreSale {
 
     event RoundConfigUpdated(uint8 roundId, uint256 minDepositUSD, uint256 maxDepositUSD, address indexed sender);
 
-    event Deposit(address indexed asset, uint256 amount, address indexed sender);
+    event Deposit(uint8 round, address indexed asset, uint256 amount, address indexed sender);
 
     event Withdrawal(uint256 amount, address to, address indexed sender);
 
@@ -23,6 +23,8 @@ interface IPreSale {
         mapping(address => mapping(address => uint256)) deposits;
         mapping(address => uint256) totalDepositsPerAsset;
     }
+
+    function currentRound() external view returns (uint8);
 
     function totalRaisedUSD() external view returns (uint256);
 
