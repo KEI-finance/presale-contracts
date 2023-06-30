@@ -18,17 +18,29 @@ interface IPreSale {
     struct Round {
         uint256 startsAt;
         uint256 endsAt;
-        uint256 minDepositUSD;
-        uint256 maxDepositUSD;
+        uint256 minDeposit;
+        uint256 maxDeposit;
+        uint256 totalDeposits;
+        uint256 cap;
         mapping(address => mapping(address => uint256)) deposits;
-        mapping(address => uint256) totalDepositsPerAsset;
+        mapping(address => uint256) depositsPerAsset;
     }
+
+    function deadline() external view returns (uint256);
 
     function currentRound() external view returns (uint8);
 
-    function totalRaisedUSD() external view returns (uint256);
+    function totalRaised() external view returns (uint256);
 
-    function depositETH(uint256 amount) external payable;
+    function ethPrice() external view returns (uint256);
+
+    function updateDates(uint256 newStartsAt, uint256 newEndsAt) external;
+
+    function setWithdrawTo(address payable account) external;
+
+    function updateRoundConfig(uint8 roundId, uint256 minDeposit, uint256 maxDeposit, uint256 cap) external;
+
+    function depositETH() external payable;
 
     function depositUSDC(uint256 amount) external;
 
