@@ -122,6 +122,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 usdAmount = getConversionRate(msg.value);
 
+        require(block.timestamp >= _startsAt, "RAISE_NOT_STARTED");
+        require(block.timestamp <= _deadline, "RAISE_ENDED");
         require(usdAmount >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
         require(usdAmount <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
         require(usdAmount + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
@@ -136,6 +138,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 amountScaled = amount * 1e12; // usdc is 6 decimals on arbitrum
 
+        require(block.timestamp >= _startsAt, "RAISE_NOT_STARTED");
+        require(block.timestamp <= _deadline, "RAISE_ENDED");
         require(amountScaled >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
         require(amountScaled <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
         require(amountScaled + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
@@ -150,6 +154,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     function depositDAI(uint256 amount) external override whenNotPaused {
         Round storage _round = _rounds[_currentRound];
 
+        require(block.timestamp >= _startsAt, "RAISE_NOT_STARTED");
+        require(block.timestamp <= _deadline, "RAISE_ENDED");
         require(amount >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
         require(amount <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
         require(amount + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
@@ -162,8 +168,6 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     receive() external payable whenNotPaused {
-        // checks
-
         depositETH();
     }
 
