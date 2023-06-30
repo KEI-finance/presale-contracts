@@ -12,17 +12,19 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "./IPreSale.sol";
 
 contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
-    address public immutable USDC;
-    address public immutable DAI;
-
     uint256 private _startsAt;
     uint256 private _deadline;
 
     uint8 private _currentRound;
 
+    uint8 private _maxRounds;
+
+    uint256 private _totalRaised;
+
     mapping(uint8 => Round) private _rounds;
 
-    uint256 private _totalRaisedUSD;
+    address public immutable USDC;
+    address public immutable DAI;
 
     address payable public withdrawTo;
 
@@ -34,6 +36,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         address USDC_,
         address DAI_,
         address oracle_,
+        uint8 maxRounds_,
         address payable withdrawTo_
     ) {
         _startsAt = startsAt_;
@@ -44,9 +47,15 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
         oracle = AggregatorV3Interface(oracle_);
 
+        _maxRounds = maxRounds_;
+
         _rounds[0].startsAt = startsAt_;
 
         _setWithdrawTo(withdrawTo_);
+    }
+
+    function startsAt() external view override returns (uint256) {
+        return _startsAt;
     }
 
     function deadline() external view override returns (uint256) {
@@ -57,51 +66,75 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         return _currentRound;
     }
 
-    function totalRaised() external view override returns (uint256) {
-        return _totalRaisedUSD;
+    function maxRounds() external view override returns (uint8) {
+        return _maxRounds;
     }
 
-    function ethPrice() external view override returns (uint256) {
-        (, int price,,,) = oracle.latestRoundData();
+    function totalRaised() external view override returns (uint256) {
+        return _totalRaised;
+    }
+
+    function totalRaisedInRound(uint8 roundId) external view override returns (uint256) {
+        return _rounds[roundId].totalRaised;
+    }
+
+    function ethPrice() public view returns (uint256) {
+        (, int256 price,,,) = oracle.latestRoundData();
         return uint256(price * 1e10);
     }
 
-    function updateDates(uint256 _newStartsAt, uint256 _newEndsAt) external onlyOwner {
-        emit DatesUpdated(_startsAt, _endsAt, _newStartsAt, _newEndsAt, msg.sender);
+    function getConversionRate(uint256 amount) public view returns (uint256) {
+        uint256 _ethPrice = ethPrice();
+        uint256 _ethAmountInUsd = (_ethPrice * amount) / 1e18;
+        return _ethAmountInUsd;
+    }
+
+    function updateDates(uint256 _newStartsAt, uint256 _newDeadline) external onlyOwner {
+        require(block.timestamp <= _startsAt, "PRESALE_STARTED");
+        require(_newStartsAt <= _newDeadline, "INVALID_DATES");
+
+        emit DatesUpdated(_startsAt, _deadline, _newStartsAt, _newDeadline, msg.sender);
 
         _startsAt = _newStartsAt;
-        _endsAt = _newEndsAt;
+        _deadline = _newDeadline;
     }
 
     function setWithdrawTo(address payable account) external onlyOwner {
         _setWithdrawTo(account);
     }
 
-    function updateRoundConfig(uint8 _roundId, uint256 _minDeposit, uint256 _maxDeposit, uint256 _cap)
+    function updateRoundConfig(uint8 _roundId, uint256 _minDeposit, uint256 _maxDeposit, uint256 _cap, uint256 _userCap)
         external
         onlyOwner
     {
-        emit RoundConfigUpdated(_roundId, _minDeposit, _maxDeposit, msg.sender);
+        RoundConfig memory _config = RoundConfig({
+            minDeposit: _minDeposit,
+            maxDeposit: _maxDeposit,
+            cap: _cap,
+            userCap: _userCap
+        });
 
-        _rounds[_roundId].minDeposit = _minDeposit;
-        _rounds[_roundId].maxDeposit = _maxDeposit;
-        _rounds[_roundId].cap = _cap;
+        _rounds[_roundId].config = _config;
+
+        emit RoundConfigUpdated(_rounds[_currentRound].config, _config, msg.sender);
     }
 
-    function depositETH() external payable override whenNotPaused {
+    function depositETH() public payable override whenNotPaused {
         // checks
 
-        //        _sync(address(0), msg.sender, ...)
+        uint256 usdAmount = getConversionRate(msg.value);
 
-        // convert eth to usd using oracle, increase _totalRaisedUSD by value
+        _sync(_currentRound, address(0), msg.sender, usdAmount);
 
-        //        emit Deposit(_currentRound, address(0), msg.value, msg.sender);
+        emit Deposit(_currentRound, address(0), usdAmount, msg.sender);
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
         // checks
 
-        _sync(_currentRound, USDC, msg.sender, amount);
+        uint256 amountScaled = amount * 1e13; // usdc is 6 decimals on arbitrum
+
+        _sync(_currentRound, USDC, msg.sender, amountScaled);
 
         IERC20(USDC).transferFrom(msg.sender, address(this), amount);
 
@@ -121,9 +154,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     receive() external payable whenNotPaused {
         // checks
 
-        // convert eth to usd using oracle, increase _totalRaisedUSD by value
-
-        //        emit Deposit(_currentRound, address(0), msg.value, msg.sender);
+        depositETH();
     }
 
     function withdraw() external override whenNotPaused onlyOwner {
@@ -135,7 +166,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         IERC20(USDC).transfer(withdrawTo, usdcBalance);
         IERC20(DAI).transfer(withdrawTo, daiBalance);
 
-        emit Withdrawal(_totalRaisedUSD, withdrawTo, msg.sender);
+        emit Withdrawal(_totalRaised, withdrawTo, msg.sender);
     }
 
     function _setWithdrawTo(address payable account) private {
@@ -146,29 +177,35 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _sync(uint8 roundId, address asset, address account, uint256 amount) private {
-        uint256 _cap = _rounds[roundId].cap;
-        uint256 _deposits = _rounds[roundId].totalDeposits;
+        uint256 _cap = _rounds[roundId].config.cap;
+        uint256 _deposits = _rounds[roundId].totalRaised;
 
         if (_deposits + amount >= _cap) {
             uint256 _currentRoundRemaining = _cap - _deposits;
 
             _deposit(roundId, asset, account, _currentRoundRemaining);
 
+            _rounds[_currentRound].endsAt = block.timestamp;
+
             uint8 _newRound = _currentRound + 1;
 
-            _currentRound = _newRound;
+            if (_newRound <= _maxRounds - 1) {
+                _currentRound = _newRound;
 
-            _sync(_currentRound, asset, account, _deposits + amount - _cap);
+                _rounds[_currentRound].startsAt = block.timestamp;
+
+                _sync(_currentRound, asset, account, _deposits + amount - _cap);
+            }
         } else {
             _deposit(roundId, asset, account, amount);
         }
     }
 
     function _deposit(uint8 roundId, address asset, address account, uint256 amount) private {
-        _rounds[roundId].totalDeposits += amount;
+        _rounds[roundId].totalRaised += amount;
         _rounds[roundId].deposits[account][asset] += amount;
         _rounds[roundId].depositsPerAsset[asset] += amount;
 
-        _totalRaisedUSD += amount;
+        _totalRaised += amount;
     }
 }
