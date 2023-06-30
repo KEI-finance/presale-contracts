@@ -13,6 +13,7 @@ import "./IPreSale.sol";
 
 contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     uint256 private _startsAt;
+
     uint256 private _deadline;
 
     uint8 private _currentRound;
@@ -24,6 +25,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(uint8 => Round) private _rounds;
 
     address public immutable USDC;
+
     address public immutable DAI;
 
     address payable public withdrawTo;
@@ -120,9 +122,13 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function depositETH() public payable override whenNotPaused {
-        // checks
+        Round storage _round = _rounds[_currentRound];
 
         uint256 usdAmount = getConversionRate(msg.value);
+
+        require(usdAmount >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
+        require(usdAmount <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
+        require(usdAmount + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
 
         _sync(_currentRound, address(0), msg.sender, usdAmount);
 
@@ -130,9 +136,13 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
-        // checks
+        Round storage _round = _rounds[_currentRound];
 
-        uint256 amountScaled = amount * 1e13; // usdc is 6 decimals on arbitrum
+        uint256 amountScaled = amount * 1e12; // usdc is 6 decimals on arbitrum
+
+        require(amountScaled >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
+        require(amountScaled <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
+        require(amountScaled + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
 
         _sync(_currentRound, USDC, msg.sender, amountScaled);
 
@@ -142,7 +152,11 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function depositDAI(uint256 amount) external override whenNotPaused {
-        // checks
+        Round storage _round = _rounds[_currentRound];
+
+        require(amount >= _round.config.minDeposit, "MIN_DEPOSIT_AMOUNT");
+        require(amount <= _round.config.maxDeposit, "MAX_DEPOSIT_AMOUNT");
+        require(amount + _round.userDeposits[msg.sender] <= _round.config.userCap, "EXCEED_USER_CAP");
 
         _sync(_currentRound, DAI, msg.sender, amount);
 
@@ -178,10 +192,10 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function _sync(uint8 roundId, address asset, address account, uint256 amount) private {
         uint256 _cap = _rounds[roundId].config.cap;
-        uint256 _deposits = _rounds[roundId].totalRaised;
+        uint256 _raised = _rounds[roundId].totalRaised;
 
-        if (_deposits + amount >= _cap) {
-            uint256 _currentRoundRemaining = _cap - _deposits;
+        if (_raised + amount >= _cap) {
+            uint256 _currentRoundRemaining = _cap - _raised;
 
             _deposit(roundId, asset, account, _currentRoundRemaining);
 
@@ -194,7 +208,7 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
 
                 _rounds[_currentRound].startsAt = block.timestamp;
 
-                _sync(_currentRound, asset, account, _deposits + amount - _cap);
+                _sync(_currentRound, asset, account, _raised + amount - _cap);
             }
         } else {
             _deposit(roundId, asset, account, amount);
@@ -202,9 +216,12 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _deposit(uint8 roundId, address asset, address account, uint256 amount) private {
-        _rounds[roundId].totalRaised += amount;
-        _rounds[roundId].deposits[account][asset] += amount;
-        _rounds[roundId].depositsPerAsset[asset] += amount;
+        Round storage _round = _rounds[roundId];
+
+        _round.totalRaised += amount;
+        _round.deposits[account][asset] += amount;
+        _round.depositsPerAsset[asset] += amount;
+        _round.userDeposits[msg.sender] += amount;
 
         _totalRaised += amount;
     }

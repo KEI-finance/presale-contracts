@@ -29,6 +29,7 @@ interface IPreSale {
         RoundConfig config;
         mapping(address => uint256) depositsPerAsset; // asset => depositBalance
         mapping(address => mapping(address => uint256)) deposits; // user => { asset => userDepositBalance }
+        mapping(address => uint256) userDeposits; // user => totalDepositBalance
     }
 
     function startsAt() external view returns (uint256);
