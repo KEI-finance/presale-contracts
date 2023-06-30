@@ -109,12 +109,8 @@ contract PreSale is IPreSale, Ownable2Step, ReentrancyGuard, Pausable {
         external
         onlyOwner
     {
-        RoundConfig memory _config = RoundConfig({
-            minDeposit: _minDeposit,
-            maxDeposit: _maxDeposit,
-            cap: _cap,
-            userCap: _userCap
-        });
+        RoundConfig memory _config =
+            RoundConfig({minDeposit: _minDeposit, maxDeposit: _maxDeposit, cap: _cap, userCap: _userCap});
 
         _rounds[_roundId].config = _config;
 

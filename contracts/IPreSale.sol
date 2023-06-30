@@ -16,8 +16,8 @@ interface IPreSale {
     event Withdrawal(uint256 amount, address to, address indexed sender);
 
     struct RoundConfig {
-        uint256 cap;        // total deposits before round is closed
-        uint256 userCap;    // max amount a user can contribute to a round
+        uint256 cap; // total deposits before round is closed
+        uint256 userCap; // max amount a user can contribute to a round
         uint256 minDeposit; // minimum amount per deposit tx
         uint256 maxDeposit; // maximum amount per deposit tx
     }
@@ -48,7 +48,8 @@ interface IPreSale {
 
     function setWithdrawTo(address payable account) external;
 
-    function updateRoundConfig(uint8 roundId, uint256 minDeposit, uint256 maxDeposit, uint256 cap, uint256 userCap) external;
+    function updateRoundConfig(uint8 roundId, uint256 minDeposit, uint256 maxDeposit, uint256 cap, uint256 userCap)
+        external;
 
     function depositETH() external payable;
 
