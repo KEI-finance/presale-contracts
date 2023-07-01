@@ -45,11 +45,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return $endsAt;
     }
 
-    function currentRoundIndex() external view override returns (uint8) {
+    function currentRoundIndex() external view override returns (uint256) {
         return $currentRoundIndex;
     }
 
-    function totalRounds() external view override returns (uint8) {
+    function totalRounds() external view override returns (uint256) {
         return $rounds.length;
     }
 
@@ -111,7 +111,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         Round storage $round = _rounds[_currentRoundIndex];
 
         uint256 usdAmount = getConversionRate(msg.value);
-        _sync(_currentRoundIndex, address(0), sender, usdAmount, sender);
+
+        $withdrawTo.transfer(msg.value);
+        _sync(_currentRoundIndex, address(0), sender, usdAmount);
 
         emit DepositETH(_currentRoundIndex, msg.value, usdAmount, sender);
     }
@@ -122,11 +124,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _currentRoundIndex = $currentRoundIndex;
         Round storage $round = $rounds[_currentRoundIndex];
 
-        IERC20(USDC).transferFrom(sender, address(this), amount);
+        IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
 
-        _sync(_currentRoundIndex, USDC, sender, amountScaled, sender);
+        _sync(_currentRoundIndex, USDC, sender, amountScaled);
 
         emit Deposit(_currentRoundIndex, USDC, amountScaled, sender);
     }
@@ -137,9 +139,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _currentRoundIndex = $currentRoundIndex;
         Round storage $round = $rounds[_currentRoundIndex];
 
-        IERC20(DAI).transferFrom(sender, address(this), amount);
+        IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
 
-        _sync(_currentRoundIndex, DAI, sender, amount, sender);
+        _sync(_currentRoundIndex, DAI, sender, amount);
 
         emit Deposit(_currentRoundIndex, DAI, amount, sender);
     }
@@ -148,16 +150,16 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         depositETH();
     }
 
-    function _setWithdrawTo(address payable account) private {
-        require(account != address(0), "INVALID_WITHDRAW_TO");
+    function _setWithdrawTo(address payable newWithdrawTo) private {
+        require(newWithdrawTo != address(0), "INVALID_WITHDRAW_TO");
 
         address sender = _msgSender();
 
-        emit WithdrawToUpdated(withdrawTo, account, sender);
-        withdrawTo = account;
+        emit WithdrawToUpdated($withdrawTo, newWithdrawTo, sender);
+        $withdrawTo = newWithdrawTo;
     }
 
-    function _sync(uint8 roundIndex, address asset, address account, uint256 amount, address sender) private {
+    function _sync(uint8 roundIndex, address asset, address account, uint256 amount) private {
         Round memory round = $rounds[roundIndex];
 
         uint256 _cap = round.cap;
@@ -172,7 +174,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
             if (_newRound <= _maxRounds - 1) {
                 $currentRoundIndex = _newRound;
-                _sync($currentRoundIndex, asset, account, _raised + amount - _cap, sender);
+                _sync($currentRoundIndex, asset, account, _raised + amount - _cap);
             }
         } else {
             _deposit(roundIndex, asset, account, amount);
@@ -188,9 +190,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         require(usdAmount <= $round.maxDeposit && $round.maxDeposit != 0, "MAX_DEPOSIT_AMOUNT");
         require(usdAmount + $round.userDeposits[account] <= $round.userCap, "EXCEED_USER_CAP");
 
-        $round.totalRaised += amount;
-        $round.userDeposits[account] += amount;
+        $round.totalRaised += usdAmount;
+        $round.userDeposits[account] += usdAmount;
 
-        _totalRaised += amount;
+        _totalRaised += usdAmount;
     }
 }
