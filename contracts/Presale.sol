@@ -167,7 +167,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         if (_raised + amount >= _cap) {
             uint256 _currentRoundIndexRemaining = _cap - _raised;
 
-            _deposit(roundIndex, asset, account, _currentRoundIndexRemaining, sender);
+            _deposit(roundIndex, asset, account, _currentRoundIndexRemaining);
 
             uint8 _newRound = roundIndex + 1;
 
@@ -176,21 +176,21 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 _sync($currentRoundIndex, asset, account, _raised + amount - _cap, sender);
             }
         } else {
-            _deposit(roundIndex, asset, account, amount, sender);
+            _deposit(roundIndex, asset, account, amount);
         }
     }
 
-    function _deposit(uint8 roundId, address asset, address account, uint256 usdAmount, address sender) private {
+    function _deposit(uint8 roundId, address asset, address account, uint256 usdAmount) private {
         Round storage $round = $rounds[roundId];
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(usdAmount >= $round.minDeposit, "MIN_DEPOSIT_AMOUNT");
-        require(usdAmount <= $round.maxDeposit, "MAX_DEPOSIT_AMOUNT");
-        require(usdAmount + $round.userDeposits[sender] <= $round.userCap, "EXCEED_USER_CAP");
+        require(usdAmount >= $round.minDeposit && $round.minDeposit != 0, "MIN_DEPOSIT_AMOUNT");
+        require(usdAmount <= $round.maxDeposit && $round.maxDeposit != 0, "MAX_DEPOSIT_AMOUNT");
+        require(usdAmount + $round.userDeposits[account] <= $round.userCap, "EXCEED_USER_CAP");
 
         $round.totalRaised += amount;
-        $round.userDeposits[sender] += amount;
+        $round.userDeposits[account] += amount;
 
         _totalRaised += amount;
     }
