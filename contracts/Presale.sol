@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "./IPresale.sol";
 
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
-
     address public immutable override USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
 
     address public immutable override DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
@@ -64,12 +63,12 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function ethPrice() public view returns (uint256) {
         (, int256 price,,,) = oracle.latestRoundData();
-        return uint256(price * 1e10);
+        return uint256(price * ETH_TO_WEI_PRECISION);
     }
 
     function getConversionRate(uint256 amount) public view returns (uint256) {
         uint256 _ethPrice = ethPrice();
-        uint256 _ethAmountInUsd = (_ethPrice * amount) / 1e18;
+        uint256 _ethAmountInUsd = (_ethPrice * amount) / PRECISION;
         return _ethAmountInUsd;
     }
 
