@@ -10,12 +10,7 @@ interface IPresale {
     event WithdrawToUpdated(address prevWithdrawTo, address newWithdrawTo, address sender);
 
     event RoundUpdated(
-        uint256 roundIndex,
-        uint256 cap,
-        uint256 userCap,
-        uint256 minDeposit,
-        uint256 maxDeposit,
-        address indexed sender
+        uint256 roundIndex, uint256 cap, uint256 userCap, uint256 minDeposit, uint256 maxDeposit, address indexed sender
     );
 
     event DepositETH(uint8 round, uint256 amount, uint256 amountUSD, address indexed sender);
@@ -52,7 +47,7 @@ interface IPresale {
     function setWithdrawTo(address payable account) external;
 
     function updateRoundConfig(uint8 roundId, uint256 minDeposit, uint256 maxDeposit, uint256 cap, uint256 userCap)
-    external;
+        external;
 
     function depositETH() external payable;
 

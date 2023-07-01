@@ -88,10 +88,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _setWithdrawTo(account);
     }
 
-    function updateRoundConfig(uint8 _roundIndex, uint256 _newCap, uint256 _newUserCap, uint256 _newMinDeposit, uint256 _newMaxDeposit)
-    external
-    onlyOwner
-    {
+    function updateRoundConfig(
+        uint8 _roundIndex,
+        uint256 _newCap,
+        uint256 _newUserCap,
+        uint256 _newMinDeposit,
+        uint256 _newMaxDeposit
+    ) external onlyOwner {
         address sender = _msgSender();
 
         Round storage $round = $rounds[_roundIndex];
@@ -127,7 +130,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-
         _sync(_currentRoundIndex, USDC, sender, amountScaled);
 
         emit Deposit(_currentRoundIndex, USDC, amountScaled, sender);
@@ -140,7 +142,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         Round storage $round = $rounds[_currentRoundIndex];
 
         IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
-
         _sync(_currentRoundIndex, DAI, sender, amount);
 
         emit Deposit(_currentRoundIndex, DAI, amount, sender);
@@ -193,6 +194,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         $round.totalRaised += usdAmount;
         $round.userDeposits[account] += usdAmount;
 
-        _totalRaised += usdAmount;
+        $totalRaised += usdAmount;
     }
 }
