@@ -97,7 +97,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _setWithdrawTo(account);
     }
 
-    function updateRoundConfig(
+    function updateRound(
         uint256 _roundIndex,
         uint256 _newCap,
         uint256 _newUserCap,
@@ -171,20 +171,22 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 _remaining = $round.cap - $round.totalRaisedUSD;
 
-        uint256 depositAmount = usdAmount;
+        uint256 _depositAmount = usdAmount;
 
         while (_remaining > 0 && $round.cap != 0) {
-            if (depositAmount >= _remaining) {
-                _deposit(roundIndex, account, _remaining);
+            if (_depositAmount >= _remaining) {
+                _deposit($currentRoundIndex, account, _remaining);
+
+                uint256 carryOver = _depositAmount - _remaining;
+                _depositAmount = carryOver;
 
                 $currentRoundIndex += 1;
+
                 $round = $rounds[$currentRoundIndex];
                 _remaining = $round.cap - $round.totalRaisedUSD;
-
-                uint256 carryOver = depositAmount - _remaining;
-                depositAmount = carryOver;
             } else {
-                _deposit(roundIndex, account, depositAmount);
+                _deposit($currentRoundIndex, account, _depositAmount);
+                break;
             }
         }
     }
