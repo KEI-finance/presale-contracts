@@ -26,8 +26,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     uint48 private $endsAt;
 
     Round[] private $rounds;
-    uint8 private $currentRoundIndex;
-    uint8 private $maxRounds;
+    uint256 private $currentRoundIndex;
 
     uint256 private $totalRaisedUSD;
 
@@ -96,7 +95,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function updateRoundConfig(
-        uint8 _roundIndex,
+        uint256 _roundIndex,
         uint256 _newCap,
         uint256 _newUserCap,
         uint256 _newMinDeposit,

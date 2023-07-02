@@ -55,7 +55,7 @@ interface IPresale {
     function setWithdrawTo(address payable account) external;
 
     function updateRoundConfig(
-        uint8 roundIndex,
+        uint256 roundIndex,
         uint256 minDeposit,
         uint256 maxDeposit,
         uint256 cap,
