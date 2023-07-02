@@ -81,10 +81,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function updateDates(uint48 _newStartsAt, uint48 _newEndsAt) external override onlyOwner {
         address sender = _msgSender();
 
-        require(block.timestamp <= $startsAt, "PRESALE_STARTED");
+        uint48 _startsAt = $startsAt;
+        uint48 _endsAt = $endsAt;
+
+        require(block.timestamp <= _startsAt, "PRESALE_STARTED");
         require(_newStartsAt <= _newEndsAt, "INVALID_DATES");
 
-        emit DatesUpdated($startsAt, _newStartsAt, $endsAt, _newEndsAt, sender);
+        emit DatesUpdated(_startsAt, _newStartsAt, _endsAt, _newEndsAt, sender);
 
         $startsAt = _newStartsAt;
         $endsAt = _newEndsAt;
