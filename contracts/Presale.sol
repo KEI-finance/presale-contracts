@@ -125,7 +125,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 usdAmount = ethToUsd(msg.value);
 
         $withdrawTo.transfer(msg.value);
-        _sync(_currentRoundIndex, sender, usdAmount);
+        _sync(_currentRoundIndex, address(0), sender, usdAmount);
 
         emit DepositETH(_currentRoundIndex, msg.value, usdAmount, sender);
     }
@@ -137,7 +137,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-        _sync(_currentRoundIndex, sender, amountScaled);
+        _sync(_currentRoundIndex, USDC, sender, amountScaled);
 
         emit Deposit(_currentRoundIndex, USDC, amountScaled, sender);
     }
@@ -148,7 +148,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _currentRoundIndex = $currentRoundIndex;
 
         IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
-        _sync(_currentRoundIndex, sender, amount);
+        _sync(_currentRoundIndex, DAI, sender, amount);
 
         emit Deposit(_currentRoundIndex, DAI, amount, sender);
     }
@@ -166,26 +166,32 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         $withdrawTo = newWithdrawTo;
     }
 
-    function _sync(uint256 roundIndex, address account, uint256 usdAmount) private {
-        Round storage $round = $rounds[roundIndex];
-
+    function _sync(uint256 roundIndex, address asset, address account, uint256 usdAmount) private {
+        Round storage $round = $rounds[startingRoundIndex];
         uint256 _remaining = $round.cap - $round.totalRaisedUSD;
+        uint256 _roundsLength = $rounds.length;
 
         uint256 _depositAmount = usdAmount;
+        uint256 _currentRoundIndex = roundIndex;
 
-        while (_remaining > 0 && $round.cap != 0) {
+        while (_remaining > 0 && _currentRoundIndex < _roundsLength) {
             if (_depositAmount >= _remaining) {
-                _deposit($currentRoundIndex, account, _remaining);
+                _deposit(_currentRoundIndex, account, _remaining);
 
                 uint256 carryOver = _depositAmount - _remaining;
                 _depositAmount = carryOver;
 
                 $currentRoundIndex += 1;
+                _currentRoundIndex = $currentRoundIndex;
 
-                $round = $rounds[$currentRoundIndex];
+                $round = $rounds[_currentRoundIndex];
                 _remaining = $round.cap - $round.totalRaisedUSD;
+
+                if (_currentRoundIndex == _roundsLength - 1 && _depositAmount > 0) {
+                    _refund(asset, account, _depositAmount);
+                }
             } else {
-                _deposit($currentRoundIndex, account, _depositAmount);
+                _deposit(_currentRoundIndex, account, _depositAmount);
                 break;
             }
         }
@@ -207,5 +213,14 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         $round.userTokenBalances[account] += tokenAmount;
 
         $totalRaisedUSD += usdAmount;
+    }
+
+    function _refund(address asset, address account, uint256 usdAmount) private {
+        if (asset == address(0)) {
+            uint256 amountInWei = usdAmount * PRECISION / ethPrice();
+            payable(account).transfer(amountInWei);
+        } else {
+            IERC20(asset).transfer(account, usdAmount);
+        }
     }
 }
