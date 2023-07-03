@@ -11,7 +11,7 @@ interface IPresale {
 
     event RoundSet(uint256 roundIndex, Round round, address indexed sender);
 
-    event Deposit(uint256 roundIndex, address indexed asset, uint256 amount, uint256 amountUSD, address indexed sender);
+    event Deposit(uint256 roundIndex, address indexed asset, uint256 amountUSD, address indexed sender);
 
     struct Round {
         uint256 allocationUSD;
@@ -36,6 +36,14 @@ interface IPresale {
     function totalRaisedUSD() external view returns (uint256);
 
     function totalRaisedInRoundUSD(uint256 roundIndex) external view returns (uint256);
+
+    function userRoundDepositsUSD(address account, uint256 roundIndex) external view returns (uint256);
+
+    function userRoundTokensAllocated(address account, uint256 roundIndex) external view returns (uint256);
+
+    function userTotalDepositsUSD(address account) external view returns (uint256);
+
+    function userTotalTokensAllocated(address account) external view returns (uint256);
 
     function updateDates(uint48 newStartsAt, uint48 newEndsAt) external;
 

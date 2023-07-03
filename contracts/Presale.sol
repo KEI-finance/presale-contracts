@@ -32,8 +32,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     address payable public $withdrawTo;
 
-    mapping(Round => mapping(address => uint256)) private userDepositsUSD;
-    mapping(Round => mapping(address => uint256)) private userTokenBalances;
+    mapping(address => uint256) private $userTotalDepositsUSD;
+    mapping(address => uint256) private $userTotalTokensAllocated;
+
+    mapping(address => mapping(uint256 => uint256)) private $userRoundDepositsUSD;
+    mapping(address => mapping(uint256 => uint256)) private $userRoundTokensAllocated;
 
     constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_) {
         _updateDates(startsAt_, endsAt_);
@@ -64,6 +67,22 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return $rounds[roundIndex].totalRaisedUSD;
     }
 
+    function userRoundDepositsUSD(address account, uint256 roundIndex) external view override returns (uint256) {
+        return $userRoundDepositsUSD[account][roundIndex];
+    }
+
+    function userRoundTokensAllocated(address account, uint256 roundIndex) external view override returns (uint256) {
+        return $userRoundTokensAllocated[account][roundIndex];
+    }
+
+    function userTotalDepositsUSD(address account) external view override returns (uint256) {
+        return $userTotalDepositsUSD[account];
+    }
+
+    function userTotalTokensAllocated(address account) external view override returns (uint256) {
+        return $userTotalTokensAllocated[account];
+    }
+
     function ethPrice() public view returns (uint256) {
         (, int256 price,,,) = ORACLE.latestRoundData();
         return uint256(uint256(price) * ETH_TO_WEI_PRECISION);
@@ -75,8 +94,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return _ethAmountInUsd;
     }
 
-    function usdToToken(uint256 tokenPrice, uint256 amount) public pure returns (uint256) {
-        return (amount * PRECISION) / tokenPrice;
+    function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
+        Round memory _round = $rounds[roundIndex];
+        return (amount * _round.tokenAllocation) / _round.allocationUSD;
     }
 
     function updateDates(uint48 newStartsAt, uint48 newEndsAt) external override onlyOwner {
@@ -90,19 +110,17 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(Round[] memory rounds) external onlyOwner {
         for (uint256 i; i < rounds.length; ++i) {
             Round memory _round = rounds[i];
-
             $rounds.push(_round);
-
             emit RoundSet(i, _round, _msgSender());
         }
     }
 
     function depositETH() public payable override whenNotPaused {
         uint256 _currentRoundIndex = $currentRoundIndex;
-        uint256 usdAmount = ethToUsd(msg.value);
+        uint256 amountUSD = ethToUsd(msg.value);
 
         $withdrawTo.transfer(msg.value);
-        _sync(_currentRoundIndex, address(0), msg.value, _msgSender(), usdAmount);
+        _sync(_currentRoundIndex, address(0), amountUSD, _msgSender());
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
@@ -112,7 +130,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-        _sync(_currentRoundIndex, USDC, sender, amount, amountScaled);
+        _sync(_currentRoundIndex, USDC, amountScaled, sender);
     }
 
     function depositDAI(uint256 amount) external override whenNotPaused {
@@ -121,7 +139,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _currentRoundIndex = $currentRoundIndex;
 
         IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
-        _sync(_currentRoundIndex, DAI, sender, amount, amount);
+        _sync(_currentRoundIndex, DAI, amount, sender);
     }
 
     receive() external payable whenNotPaused {
@@ -149,61 +167,65 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         $withdrawTo = newWithdrawTo;
     }
 
-    function _sync(uint256 roundIndex, address asset, address account, uint256 usdAmount) private {
-        Round storage $round = $rounds[startingRoundIndex];
-        uint256 _remaining = $round.cap - $round.totalRaisedUSD;
+    function _sync(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
+        Round memory _round = $rounds[roundIndex];
+        uint256 _remaining = _round.allocationUSD - _round.totalRaisedUSD;
         uint256 _roundsLength = $rounds.length;
 
-        uint256 _depositAmount = usdAmount;
+        uint256 _depositAmount = amountUSD;
         uint256 _currentRoundIndex = roundIndex;
 
         while (_remaining > 0 && _currentRoundIndex < _roundsLength) {
             if (_depositAmount >= _remaining) {
-                _deposit(_currentRoundIndex, account, _remaining);
+                _deposit(_currentRoundIndex, asset, _remaining, account);
 
                 uint256 _leftOver = _depositAmount - _remaining;
 
                 $currentRoundIndex += 1;
                 _currentRoundIndex = $currentRoundIndex;
 
-                $round = $rounds[_currentRoundIndex];
-                _remaining = $round.cap - $round.totalRaisedUSD;
+                _round = $rounds[_currentRoundIndex];
+                _remaining = _round.allocationUSD - _round.totalRaisedUSD;
 
                 if (_currentRoundIndex == _roundsLength - 1 && _leftOver > 0) {
-                    _refund(asset, account, _leftOver);
+                    _refund(asset, _leftOver, account);
                 }
             } else {
-                _deposit(_currentRoundIndex, account, _depositAmount);
+                _deposit(_currentRoundIndex, asset, _depositAmount, account);
                 break;
             }
         }
     }
 
-    function _deposit(uint256 roundIndex, address account, uint256 amount, uint256 amountUSD) private {
-        Round storage $round = $rounds[roundIndex];
+    function _deposit(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
+        Round memory _round = $rounds[roundIndex];
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(amountUSD >= $round.minDeposit && $round.minDeposit != 0, "MIN_DEPOSIT_AMOUNT");
-        require(amountUSD + $round.userDepositsUSD[account] <= $round.userCap, "EXCEED_USER_CAP");
+        require(amountUSD >= _round.minDepositUSD && _round.minDepositUSD != 0, "MIN_DEPOSIT_AMOUNT");
+        require(amountUSD + $userRoundDepositsUSD[account][roundIndex] <= _round.userCapUSD, "EXCEED_USER_CAP");
 
-        uint256 tokenAmount = usdToToken($round.price, amountUSD);
+        uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
 
-        $round.totalRaisedUSD += amountUSD;
-        $round.userDepositsUSD[account] += amountUSD;
-        $round.userTokenBalances[account] += tokenAmount;
+        _round.totalRaisedUSD += amountUSD;
+
+        $userRoundDepositsUSD[account][roundIndex] += amountUSD;
+        $userRoundTokensAllocated[account][roundIndex] += tokenAllocation;
+
+        $userTotalDepositsUSD[account] += amountUSD;
+        $userTotalTokensAllocated[account] += tokenAllocation;
 
         $totalRaisedUSD += amountUSD;
 
-        emit Deposit(roundIndex, asset, account, amount, amountUSD, _msgSender());
+        emit Deposit(roundIndex, asset, amountUSD, account);
     }
 
-    function _refund(address asset, address account, uint256 usdAmount) private {
+    function _refund(address asset, uint256 amountUSD, address account) private {
         if (asset == address(0)) {
-            uint256 amountInWei = usdAmount * PRECISION / ethPrice();
+            uint256 amountInWei = amountUSD * PRECISION / ethPrice();
             payable(account).transfer(amountInWei);
         } else {
-            IERC20(asset).transfer(account, usdAmount);
+            IERC20(asset).transfer(account, amountUSD);
         }
     }
 }
