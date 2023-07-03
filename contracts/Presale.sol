@@ -32,10 +32,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     address payable public $withdrawTo;
 
-    constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_) {
-        $startsAt = startsAt_;
-        $endsAt = endsAt_;
+    mapping(Round => mapping(address => uint256)) private userDepositsUSD;
+    mapping(Round => mapping(address => uint256)) private userTokenBalances;
 
+    constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_) {
+        _updateDates(startsAt_, endsAt_);
         _setWithdrawTo(withdrawTo_);
     }
 
@@ -78,56 +79,30 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return (amount * PRECISION) / tokenPrice;
     }
 
-    function updateDates(uint48 _newStartsAt, uint48 _newEndsAt) external override onlyOwner {
-        address sender = _msgSender();
-
-        uint48 _startsAt = $startsAt;
-        uint48 _endsAt = $endsAt;
-
-        require(block.timestamp <= _startsAt, "PRESALE_STARTED");
-        require(_newStartsAt <= _newEndsAt, "INVALID_DATES");
-
-        emit DatesUpdated(_startsAt, _newStartsAt, _endsAt, _newEndsAt, sender);
-
-        $startsAt = _newStartsAt;
-        $endsAt = _newEndsAt;
+    function updateDates(uint48 newStartsAt, uint48 newEndsAt) external override onlyOwner {
+        _updateDates(newStartsAt, newEndsAt);
     }
 
     function setWithdrawTo(address payable account) external onlyOwner {
         _setWithdrawTo(account);
     }
 
-    function updateRound(
-        uint256 _roundIndex,
-        uint256 _newCap,
-        uint256 _newUserCap,
-        uint256 _newMinDeposit,
-        uint256 _newMaxDeposit,
-        uint256 _newPrice
-    ) external onlyOwner {
-        address sender = _msgSender();
+    function setRounds(Round[] memory rounds) external onlyOwner {
+        for (uint256 i; i < rounds.length; ++i) {
+            Round memory _round = rounds[i];
 
-        Round storage $round = $rounds[_roundIndex];
+            $rounds.push(_round);
 
-        $round.cap = _newCap;
-        $round.userCap = _newUserCap;
-        $round.minDeposit = _newMinDeposit;
-        $round.maxDeposit = _newMaxDeposit;
-        $round.price = _newPrice;
-
-        emit RoundUpdated(_roundIndex, _newCap, _newUserCap, _newMinDeposit, _newMaxDeposit, _newPrice, sender);
+            emit RoundSet(i, _round, _msgSender());
+        }
     }
 
     function depositETH() public payable override whenNotPaused {
-        address sender = _msgSender();
-
         uint256 _currentRoundIndex = $currentRoundIndex;
         uint256 usdAmount = ethToUsd(msg.value);
 
         $withdrawTo.transfer(msg.value);
-        _sync(_currentRoundIndex, address(0), sender, usdAmount);
-
-        emit DepositETH(_currentRoundIndex, msg.value, usdAmount, sender);
+        _sync(_currentRoundIndex, address(0), msg.value, _msgSender(), usdAmount);
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
@@ -137,9 +112,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-        _sync(_currentRoundIndex, USDC, sender, amountScaled);
-
-        emit Deposit(_currentRoundIndex, USDC, amountScaled, sender);
+        _sync(_currentRoundIndex, USDC, sender, amount, amountScaled);
     }
 
     function depositDAI(uint256 amount) external override whenNotPaused {
@@ -148,21 +121,31 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _currentRoundIndex = $currentRoundIndex;
 
         IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
-        _sync(_currentRoundIndex, DAI, sender, amount);
-
-        emit Deposit(_currentRoundIndex, DAI, amount, sender);
+        _sync(_currentRoundIndex, DAI, sender, amount, amount);
     }
 
     receive() external payable whenNotPaused {
         depositETH();
     }
 
+    function _updateDates(uint48 _newStartsAt, uint48 _newEndsAt) private {
+        uint48 _startsAt = $startsAt;
+        uint48 _endsAt = $endsAt;
+
+        require(block.timestamp <= _startsAt, "PRESALE_STARTED");
+        require(_newStartsAt <= _newEndsAt, "INVALID_DATES");
+
+        emit DatesUpdated(_startsAt, _newStartsAt, _endsAt, _newEndsAt, _msgSender());
+
+        $startsAt = _newStartsAt;
+        $endsAt = _newEndsAt;
+    }
+
     function _setWithdrawTo(address payable newWithdrawTo) private {
         require(newWithdrawTo != address(0), "INVALID_WITHDRAW_TO");
 
-        address sender = _msgSender();
+        emit WithdrawToUpdated($withdrawTo, newWithdrawTo, _msgSender());
 
-        emit WithdrawToUpdated($withdrawTo, newWithdrawTo, sender);
         $withdrawTo = newWithdrawTo;
     }
 
@@ -178,8 +161,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             if (_depositAmount >= _remaining) {
                 _deposit(_currentRoundIndex, account, _remaining);
 
-                uint256 carryOver = _depositAmount - _remaining;
-                _depositAmount = carryOver;
+                uint256 _leftOver = _depositAmount - _remaining;
 
                 $currentRoundIndex += 1;
                 _currentRoundIndex = $currentRoundIndex;
@@ -187,8 +169,8 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 $round = $rounds[_currentRoundIndex];
                 _remaining = $round.cap - $round.totalRaisedUSD;
 
-                if (_currentRoundIndex == _roundsLength - 1 && _depositAmount > 0) {
-                    _refund(asset, account, _depositAmount);
+                if (_currentRoundIndex == _roundsLength - 1 && _leftOver > 0) {
+                    _refund(asset, account, _leftOver);
                 }
             } else {
                 _deposit(_currentRoundIndex, account, _depositAmount);
@@ -197,22 +179,23 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         }
     }
 
-    function _deposit(uint256 roundId, address account, uint256 usdAmount) private {
-        Round storage $round = $rounds[roundId];
+    function _deposit(uint256 roundIndex, address account, uint256 amount, uint256 amountUSD) private {
+        Round storage $round = $rounds[roundIndex];
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(usdAmount >= $round.minDeposit && $round.minDeposit != 0, "MIN_DEPOSIT_AMOUNT");
-        require(usdAmount <= $round.maxDeposit && $round.maxDeposit != 0, "MAX_DEPOSIT_AMOUNT");
-        require(usdAmount + $round.userDepositsUSD[account] <= $round.userCap, "EXCEED_USER_CAP");
+        require(amountUSD >= $round.minDeposit && $round.minDeposit != 0, "MIN_DEPOSIT_AMOUNT");
+        require(amountUSD + $round.userDepositsUSD[account] <= $round.userCap, "EXCEED_USER_CAP");
 
-        uint256 tokenAmount = usdToToken($round.price, usdAmount);
+        uint256 tokenAmount = usdToToken($round.price, amountUSD);
 
-        $round.totalRaisedUSD += usdAmount;
-        $round.userDepositsUSD[account] += usdAmount;
+        $round.totalRaisedUSD += amountUSD;
+        $round.userDepositsUSD[account] += amountUSD;
         $round.userTokenBalances[account] += tokenAmount;
 
-        $totalRaisedUSD += usdAmount;
+        $totalRaisedUSD += amountUSD;
+
+        emit Deposit(roundIndex, asset, account, amount, amountUSD, _msgSender());
     }
 
     function _refund(address asset, address account, uint256 usdAmount) private {

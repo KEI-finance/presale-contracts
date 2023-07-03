@@ -9,29 +9,16 @@ interface IPresale {
 
     event WithdrawToUpdated(address prevWithdrawTo, address newWithdrawTo, address sender);
 
-    event RoundUpdated(
-        uint256 roundIndex,
-        uint256 cap,
-        uint256 userCap,
-        uint256 minDeposit,
-        uint256 maxDeposit,
-        uint256 price,
-        address indexed sender
-    );
+    event RoundSet(uint256 roundIndex, Round round, address indexed sender);
 
-    event DepositETH(uint256 roundIndex, uint256 amount, uint256 amountUSD, address indexed sender);
-
-    event Deposit(uint256 roundIndex, address indexed asset, uint256 amountUSD, address indexed sender);
+    event Deposit(uint256 roundIndex, address indexed asset, uint256 amount, uint256 amountUSD, address indexed sender);
 
     struct Round {
-        uint256 cap;
-        uint256 userCap;
-        uint256 minDeposit;
-        uint256 maxDeposit;
-        uint256 price;
+        uint256 allocationUSD;
+        uint256 userCapUSD;
+        uint256 minDepositUSD;
+        uint256 tokenAllocation;
         uint256 totalRaisedUSD;
-        mapping(address => uint256) userDepositsUSD;
-        mapping(address => uint256) userTokenBalances;
     }
 
     function USDC() external view returns (address);
@@ -54,14 +41,7 @@ interface IPresale {
 
     function setWithdrawTo(address payable account) external;
 
-    function updateRound(
-        uint256 roundIndex,
-        uint256 cap,
-        uint256 userCap,
-        uint256 minDeposit,
-        uint256 maxDeposit,
-        uint256 price
-    ) external;
+    function setRounds(Round[] memory rounds) external;
 
     function depositETH() external payable;
 
