@@ -32,11 +32,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     address payable public $withdrawTo;
 
-    mapping(address => uint256) private $userTotalDepositsUSD;
-    mapping(address => uint256) private $userTotalTokensAllocated;
+    mapping(address => uint256) private $depositsUSD;
+    mapping(address => uint256) private $tokensAllocated;
 
-    mapping(address => mapping(uint256 => uint256)) private $userRoundDepositsUSD;
-    mapping(address => mapping(uint256 => uint256)) private $userRoundTokensAllocated;
+    mapping(uint256 => mapping(address => uint256)) private $roundDepositsUSD;
+    mapping(uint256 => mapping(address => uint256)) private $roundTokensAllocated;
 
     constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_) {
         _updateDates(startsAt_, endsAt_);
@@ -63,24 +63,24 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return $totalRaisedUSD;
     }
 
-    function totalRaisedInRoundUSD(uint256 roundIndex) external view override returns (uint256) {
+    function raisedUSD(uint256 roundIndex) external view override returns (uint256) {
         return $rounds[roundIndex].totalRaisedUSD;
     }
 
-    function userRoundDepositsUSD(address account, uint256 roundIndex) external view override returns (uint256) {
-        return $userRoundDepositsUSD[account][roundIndex];
+    function roundDepositsUSD(uint256 roundIndex, address account) external view override returns (uint256) {
+        return $roundDepositsUSD[roundIndex][account];
     }
 
-    function userRoundTokensAllocated(address account, uint256 roundIndex) external view override returns (uint256) {
-        return $userRoundTokensAllocated[account][roundIndex];
+    function roundTokensAllocated(uint256 roundIndex, address account) external view override returns (uint256) {
+        return $roundTokensAllocated[roundIndex][account];
     }
 
-    function userTotalDepositsUSD(address account) external view override returns (uint256) {
-        return $userTotalDepositsUSD[account];
+    function depositsUSD(address account) external view override returns (uint256) {
+        return $depositsUSD[account];
     }
 
-    function userTotalTokensAllocated(address account) external view override returns (uint256) {
-        return $userTotalTokensAllocated[account];
+    function tokensAllocated(address account) external view override returns (uint256) {
+        return $tokensAllocated[account];
     }
 
     function ethPrice() public view returns (uint256) {
@@ -200,17 +200,17 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
         require(amountUSD >= _round.minDepositUSD && _round.minDepositUSD != 0, "MIN_DEPOSIT_AMOUNT");
-        require(amountUSD + $userRoundDepositsUSD[account][roundIndex] <= _round.userCapUSD, "EXCEED_USER_CAP");
+        require(amountUSD + $roundDepositsUSD[roundIndex][account] <= _round.userCapUSD, "EXCEED_USER_CAP");
 
         uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
 
         $rounds[roundIndex].totalRaisedUSD += amountUSD;
 
-        $userRoundDepositsUSD[account][roundIndex] += amountUSD;
-        $userRoundTokensAllocated[account][roundIndex] += tokenAllocation;
+        $roundDepositsUSD[roundIndex][account] += amountUSD;
+        $roundTokensAllocated[roundIndex][account] += tokenAllocation;
 
-        $userTotalDepositsUSD[account] += amountUSD;
-        $userTotalTokensAllocated[account] += tokenAllocation;
+        $depositsUSD[account] += amountUSD;
+        $tokensAllocated[account] += tokenAllocation;
 
         $totalRaisedUSD += amountUSD;
 

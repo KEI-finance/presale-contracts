@@ -35,15 +35,15 @@ interface IPresale {
 
     function totalRaisedUSD() external view returns (uint256);
 
-    function totalRaisedInRoundUSD(uint256 roundIndex) external view returns (uint256);
+    function raisedUSD(uint256 roundIndex) external view returns (uint256);
 
-    function userRoundDepositsUSD(address account, uint256 roundIndex) external view returns (uint256);
+    function roundDepositsUSD(uint256 roundIndex, address account) external view returns (uint256);
 
-    function userRoundTokensAllocated(address account, uint256 roundIndex) external view returns (uint256);
+    function roundTokensAllocated(uint256 roundIndex, address account) external view returns (uint256);
 
-    function userTotalDepositsUSD(address account) external view returns (uint256);
+    function depositsUSD(address account) external view returns (uint256);
 
-    function userTotalTokensAllocated(address account) external view returns (uint256);
+    function tokensAllocated(address account) external view returns (uint256);
 
     function updateDates(uint48 newStartsAt, uint48 newEndsAt) external;
 
