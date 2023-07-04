@@ -195,7 +195,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _deposit(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
-        Round storage _round = $rounds[roundIndex];
+        Round memory _round = $rounds[roundIndex];
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
@@ -204,7 +204,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
 
-        _round.totalRaisedUSD += amountUSD;
+        $rounds[roundIndex].totalRaisedUSD += amountUSD;
 
         $userRoundDepositsUSD[account][roundIndex] += amountUSD;
         $userRoundTokensAllocated[account][roundIndex] += tokenAllocation;
