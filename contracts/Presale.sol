@@ -116,30 +116,26 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function depositETH() public payable override whenNotPaused {
-        uint256 _currentRoundIndex = $currentRoundIndex;
         uint256 amountUSD = ethToUsd(msg.value);
 
         $withdrawTo.transfer(msg.value);
-        _sync(_currentRoundIndex, address(0), amountUSD, _msgSender());
+        _sync($currentRoundIndex, address(0), amountUSD, _msgSender());
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
         address sender = _msgSender();
 
-        uint256 _currentRoundIndex = $currentRoundIndex;
         IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-        _sync(_currentRoundIndex, USDC, amountScaled, sender);
+        _sync($currentRoundIndex, USDC, amountScaled, sender);
     }
 
     function depositDAI(uint256 amount) external override whenNotPaused {
         address sender = _msgSender();
 
-        uint256 _currentRoundIndex = $currentRoundIndex;
-
         IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
-        _sync(_currentRoundIndex, DAI, amount, sender);
+        _sync($currentRoundIndex, DAI, amount, sender);
     }
 
     receive() external payable whenNotPaused {
