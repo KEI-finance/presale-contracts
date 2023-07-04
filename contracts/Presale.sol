@@ -165,27 +165,28 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function _sync(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
         Round memory _round = $rounds[roundIndex];
-        uint256 _remaining = _round.allocationUSD - _round.totalRaisedUSD;
+        uint256 _availableAllocation = _round.allocationUSD - _round.totalRaisedUSD;
         uint256 _roundsLength = $rounds.length;
 
         uint256 _depositAmount = amountUSD;
         uint256 _currentRoundIndex = roundIndex;
 
-        while (_remaining > 0 && _currentRoundIndex < _roundsLength) {
-            if (_depositAmount >= _remaining) {
-                _deposit(_currentRoundIndex, asset, _remaining, account);
+        while (_availableAllocation > 0) {
+            if (_depositAmount >= _availableAllocation) {
+                _deposit(_currentRoundIndex, asset, _availableAllocation, account);
 
-                uint256 _leftOver = _depositAmount - _remaining;
+                if (_currentRoundIndex == _roundsLength - 1) {
+                    uint256 _leftOver = _depositAmount - _availableAllocation;
+                    _refund(asset, _leftOver, account);
+                } else {
+                    $currentRoundIndex += 1;
+                    _currentRoundIndex = $currentRoundIndex;
+                }
 
-                $currentRoundIndex += 1;
-                _currentRoundIndex = $currentRoundIndex;
+                _depositAmount -= _availableAllocation;
 
                 _round = $rounds[_currentRoundIndex];
-                _remaining = _round.allocationUSD - _round.totalRaisedUSD;
-
-                if (_currentRoundIndex == _roundsLength - 1 && _leftOver > 0) {
-                    _refund(asset, _leftOver, account);
-                }
+                _availableAllocation = _round.allocationUSD - _round.totalRaisedUSD;
             } else {
                 _deposit(_currentRoundIndex, asset, _depositAmount, account);
                 break;
@@ -194,7 +195,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _deposit(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
-        Round memory _round = $rounds[roundIndex];
+        Round storage _round = $rounds[roundIndex];
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
