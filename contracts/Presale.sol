@@ -55,6 +55,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return $currentRoundIndex;
     }
 
+    function rounds(uint256 roundIndex) external view override returns (Round memory) {
+        return $rounds[roundIndex];
+    }
+
     function totalRounds() external view override returns (uint256) {
         return $rounds.length;
     }
@@ -107,9 +111,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _setWithdrawTo(account);
     }
 
-    function setRounds(Round[] memory rounds) external onlyOwner {
-        for (uint256 i; i < rounds.length; ++i) {
-            Round memory _round = rounds[i];
+    function setRounds(Round[] memory _rounds) external onlyOwner {
+        for (uint256 i; i < _rounds.length; ++i) {
+            Round memory _round = _rounds[i];
             $rounds.push(_round);
             emit RoundSet(i, _round, _msgSender());
         }
@@ -146,7 +150,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint48 _startsAt = $startsAt;
         uint48 _endsAt = $endsAt;
 
-        require(block.timestamp <= _startsAt, "PRESALE_STARTED");
+        require(block.timestamp <= _startsAt || _startsAt == 0, "PRESALE_STARTED");
         require(_newStartsAt <= _newEndsAt, "INVALID_DATES");
 
         emit DatesUpdated(_startsAt, _newStartsAt, _endsAt, _newEndsAt, _msgSender());

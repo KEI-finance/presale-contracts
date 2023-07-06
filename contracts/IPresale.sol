@@ -31,6 +31,8 @@ interface IPresale {
 
     function currentRoundIndex() external view returns (uint256);
 
+    function rounds(uint256 roundIndex) external view returns (Round memory);
+
     function totalRounds() external view returns (uint256);
 
     function totalRaisedUSD() external view returns (uint256);
