@@ -20,7 +20,9 @@ contract PresaleTest is Test {
     uint48 internal startsAt;
     uint48 internal endsAt;
 
-    MockV3Aggregator internal oracle;
+    TestERC20 internal USDC;
+    TestERC20 internal DAI;
+    MockV3Aggregator internal ORACLE;
 
     IPresale.Round[] internal rounds;
 
@@ -32,10 +34,23 @@ contract PresaleTest is Test {
         startsAt = 1 days;
         endsAt = 10 days;
 
-        oracle = new MockV3Aggregator(8, 2000 * 10 ** 8);
+        USDC = new TestERC20("USDC", "USDC");
+        DAI = new TestERC20("DAI", "DAI");
+        ORACLE = new MockV3Aggregator(8, 2000 * 10 ** 8);
+
+        USDC.setDecimals(6);
+
+        vm.deal(ALICE, 100 ether);
+        vm.deal(BOB, 100 ether);
+
+        USDC.mint(ALICE, 1000 * 10 ** 6);
+        USDC.mint(BOB, 1000 * 10 ** 6);
+
+        DAI.mint(ALICE, 1000 ether);
+        DAI.mint(BOB, 1000 ether);
 
         vm.prank(GLOBAL_ADMIN);
-        presale = new Presale(startsAt, endsAt, GLOBAL_ADMIN, address(oracle));
+        presale = new Presale(startsAt, endsAt, GLOBAL_ADMIN, address(ORACLE), address(USDC), address(DAI));
 
         for (uint256 i; i < 5; ++i) {
             IPresale.Round memory round_ = IPresale.Round({
@@ -77,7 +92,20 @@ contract PresaleTest_totalRounds is PresaleTest {
 }
 
 contract PresaleTest_totalRaisedUSD is PresaleTest {
-    function test_success() external {}
+    function setUp() public override {
+        super.setUp();
+
+        vm.warp(1 days + 1);
+
+        vm.startPrank(ALICE);
+        DAI.approve(address(presale), type(uint256).max);
+        presale.depositDAI(1000 ether);
+        vm.stopPrank();
+    }
+
+    function test_success() external {
+        assertEq(presale.totalRaisedUSD(), 1000 ether);
+    }
 }
 
 contract PresaleTest_raisedUSD is PresaleTest {

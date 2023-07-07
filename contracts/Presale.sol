@@ -12,11 +12,11 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "./IPresale.sol";
 
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
-    address public immutable override USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+    address public immutable override USDC;
 
-    address public immutable override DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+    address public immutable override DAI;
 
-    AggregatorV3Interface public ORACLE;
+    AggregatorV3Interface public immutable ORACLE;
 
     uint256 private immutable PRECISION = 1e18;
     uint256 private immutable ETH_TO_WEI_PRECISION = 1e10;
@@ -38,11 +38,20 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(uint256 => mapping(address => uint256)) private $roundDepositsUSD;
     mapping(uint256 => mapping(address => uint256)) private $roundTokensAllocated;
 
-    constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_, address oracle_) {
+    constructor(
+        uint48 startsAt_,
+        uint48 endsAt_,
+        address payable withdrawTo_,
+        address oracle_,
+        address usdc_,
+        address dai_
+    ) {
         _updateDates(startsAt_, endsAt_);
         _setWithdrawTo(withdrawTo_);
 
         ORACLE = AggregatorV3Interface(oracle_);
+        USDC = usdc_;
+        DAI = dai_;
     }
 
     function startsAt() external view override returns (uint48) {
