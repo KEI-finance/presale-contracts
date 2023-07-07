@@ -7,6 +7,7 @@ import "forge-std/Test.sol";
 import "contracts/PreSale.sol";
 
 import "../mocks/TestERC20.sol";
+import "../mocks/MockV3Aggregator.sol";
 
 contract PresaleTest is Test {
     Presale internal presale;
@@ -19,6 +20,8 @@ contract PresaleTest is Test {
     uint48 internal startsAt;
     uint48 internal endsAt;
 
+    MockV3Aggregator internal oracle;
+
     IPresale.Round[] internal rounds;
 
     function setUp() public virtual {
@@ -29,8 +32,24 @@ contract PresaleTest is Test {
         startsAt = 1 days;
         endsAt = 10 days;
 
+        oracle = new MockV3Aggregator(8, 2000 * 10 ** 8);
+
         vm.prank(GLOBAL_ADMIN);
-        presale = new Presale(startsAt, endsAt, GLOBAL_ADMIN);
+        presale = new Presale(startsAt, endsAt, GLOBAL_ADMIN, address(oracle));
+
+        for (uint256 i; i < 5; ++i) {
+            IPresale.Round memory round_ = IPresale.Round({
+                allocationUSD: 10_000 * (i + 1),
+                userCapUSD: 50_000,
+                minDepositUSD: 1,
+                tokenAllocation: 20_000 * (i + 1),
+                totalRaisedUSD: 0
+            });
+            rounds.push(round_);
+        }
+
+        vm.prank(GLOBAL_ADMIN);
+        presale.setRounds(rounds);
     }
 
     modifier assertEvent() {
@@ -52,7 +71,9 @@ contract PresaleTest_endsAt is PresaleTest {
 }
 
 contract PresaleTest_totalRounds is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        assertEq(presale.totalRounds(), 5);
+    }
 }
 
 contract PresaleTest_totalRaisedUSD is PresaleTest {
@@ -80,7 +101,15 @@ contract PresaleTest_tokensAllocated is PresaleTest {
 }
 
 contract PresaleTest_ethPrice is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        assertEq(presale.ethPrice(), 2000 * 10 ** 18);
+    }
+}
+
+contract PresaleTest_ethToUsd is PresaleTest {
+    function test_success() external {
+        assertEq(presale.ethToUsd(1 * 10 ** 18), 2000 * 10 ** 18);
+    }
 }
 
 contract PresaleTest_usdToTokens is PresaleTest {
@@ -155,6 +184,8 @@ contract PresaleTest_setWithdrawTo is PresaleTest {
 }
 
 contract PresaleTest_setRounds is PresaleTest {
+    event RoundSet(uint256 roundIndex, IPresale.Round round, address indexed sender);
+
     IPresale.Round[] internal _rounds;
 
     uint256 internal totalRounds;
@@ -201,7 +232,12 @@ contract PresaleTest_setRounds is PresaleTest {
     }
 
     function test_emits_RoundSet() external assertEvent {
-        
+        for (uint256 i; i < totalRounds; ++i) {
+            IPresale.Round memory _round = _rounds[i];
+            emit RoundSet(i, _round, GLOBAL_ADMIN);
+        }
+        vm.prank(GLOBAL_ADMIN);
+        presale.setRounds(_rounds);
     }
 }
 
@@ -260,24 +296,3 @@ contract PresaleTest_receive is PresaleTest {
 
     function test_emits_Deposit() external {}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

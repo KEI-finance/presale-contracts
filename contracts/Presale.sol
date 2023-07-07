@@ -16,7 +16,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     address public immutable override DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
 
-    AggregatorV3Interface public immutable ORACLE = AggregatorV3Interface(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612);
+    AggregatorV3Interface public ORACLE;
 
     uint256 private immutable PRECISION = 1e18;
     uint256 private immutable ETH_TO_WEI_PRECISION = 1e10;
@@ -38,9 +38,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(uint256 => mapping(address => uint256)) private $roundDepositsUSD;
     mapping(uint256 => mapping(address => uint256)) private $roundTokensAllocated;
 
-    constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_) {
+    constructor(uint48 startsAt_, uint48 endsAt_, address payable withdrawTo_, address oracle_) {
         _updateDates(startsAt_, endsAt_);
         _setWithdrawTo(withdrawTo_);
+
+        ORACLE = AggregatorV3Interface(oracle_);
     }
 
     function startsAt() external view override returns (uint48) {
@@ -112,6 +114,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function setRounds(Round[] memory _rounds) external onlyOwner {
+        if ($rounds.length > 0) {
+            delete $rounds;
+        }
+
         for (uint256 i; i < _rounds.length; ++i) {
             Round memory _round = _rounds[i];
             $rounds.push(_round);
