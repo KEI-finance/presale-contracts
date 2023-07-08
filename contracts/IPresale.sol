@@ -9,9 +9,13 @@ interface IPresale {
 
     event WithdrawToUpdated(address prevWithdrawTo, address newWithdrawTo, address sender);
 
+    event Withdrawal(address to, uint256 amountUSD, address indexed sender);
+
     event RoundSet(uint256 roundIndex, Round round, address indexed sender);
 
     event Deposit(uint256 roundIndex, address indexed asset, uint256 amountUSD, address indexed sender);
+
+    event Refund(address asset, uint256 amountUSD, address indexed sender);
 
     struct Round {
         uint256 allocationUSD;
@@ -52,6 +56,8 @@ interface IPresale {
     function setWithdrawTo(address payable account) external;
 
     function setRounds(Round[] memory rounds) external;
+
+    function withdraw() external;
 
     function depositETH() external payable;
 

@@ -26,6 +26,8 @@ contract PresaleTest is Test {
 
     IPresale.Round[] internal rounds;
 
+    uint256[] internal allocationsUSD;
+
     function setUp() public virtual {
         GLOBAL_ADMIN = payable(makeAddr("GLOBAL_ADMIN"));
         ALICE = makeAddr("ALICE");
@@ -40,24 +42,26 @@ contract PresaleTest is Test {
 
         USDC.setDecimals(6);
 
-        vm.deal(ALICE, 100 ether);
-        vm.deal(BOB, 100 ether);
+        vm.deal(ALICE, 50_000 ether);
+        vm.deal(BOB, 50_000 ether);
 
         USDC.mint(ALICE, 1000 * 10 ** 6);
         USDC.mint(BOB, 1000 * 10 ** 6);
 
-        DAI.mint(ALICE, 1000 ether);
-        DAI.mint(BOB, 1000 ether);
+        DAI.mint(ALICE, 1_000_000 ether);
+        DAI.mint(BOB, 1_000_000 ether);
 
         vm.prank(GLOBAL_ADMIN);
         presale = new Presale(startsAt, endsAt, GLOBAL_ADMIN, address(ORACLE), address(USDC), address(DAI));
 
-        for (uint256 i; i < 5; ++i) {
+        allocationsUSD = [7_000, 8_000, 8_000, 9_000, 9_000, 10_000, 10_000];
+
+        for (uint256 i; i < 7; ++i) {
             IPresale.Round memory round_ = IPresale.Round({
-                allocationUSD: 10_000 * (i + 1),
-                userCapUSD: 50_000,
-                minDepositUSD: 1,
-                tokenAllocation: 20_000 * (i + 1),
+                allocationUSD: allocationsUSD[i] * 1 ether,
+                userCapUSD: 10_000 ether,
+                minDepositUSD: 1 ether,
+                tokenAllocation: 100_000 ether,
                 totalRaisedUSD: 0
             });
             rounds.push(round_);
@@ -65,6 +69,16 @@ contract PresaleTest is Test {
 
         vm.prank(GLOBAL_ADMIN);
         presale.setRounds(rounds);
+
+        vm.startPrank(ALICE);
+        USDC.approve(address(presale), type(uint256).max);
+        DAI.approve(address(presale), type(uint256).max);
+        vm.stopPrank();
+
+        vm.startPrank(BOB);
+        USDC.approve(address(presale), type(uint256).max);
+        DAI.approve(address(presale), type(uint256).max);
+        vm.stopPrank();
     }
 
     modifier assertEvent() {
@@ -87,7 +101,7 @@ contract PresaleTest_endsAt is PresaleTest {
 
 contract PresaleTest_totalRounds is PresaleTest {
     function test_success() external {
-        assertEq(presale.totalRounds(), 5);
+        assertEq(presale.totalRounds(), 7);
     }
 }
 
@@ -98,13 +112,12 @@ contract PresaleTest_totalRaisedUSD is PresaleTest {
         vm.warp(1 days + 1);
 
         vm.startPrank(ALICE);
-        DAI.approve(address(presale), type(uint256).max);
-        presale.depositDAI(1000 ether);
+        presale.depositDAI(62_000 ether);
         vm.stopPrank();
     }
 
     function test_success() external {
-        assertEq(presale.totalRaisedUSD(), 1000 ether);
+        assertEq(presale.totalRaisedUSD(), 61_000 ether);
     }
 }
 
@@ -269,18 +282,80 @@ contract PresaleTest_setRounds is PresaleTest {
     }
 }
 
-contract PresaleTest_depositETH is PresaleTest {
+contract PresaleTest_withdraw is PresaleTest {
     function test_success() external {}
 
-    function test_rejects_whenNotStarted() external {}
+    function test_rejects_whenNotOwner() external {}
 
-    function test_rejects_whenEnded() external {}
+    function test_emits_Withdrawal() external {}
+}
 
-    function test_rejects_whenMinDepositAmount() external {}
+contract PresaleTest_depositETH is PresaleTest {
+    function test_success() external {
+        vm.warp(1 days + 1);
 
-    function test_rejects_whenExceedUserCap() external {}
+        vm.prank(ALICE);
+        presale.depositETH{value: 2 ether}();
 
-    function test_emits_Deposit() external {}
+        assertEq(presale.depositsUSD(ALICE), presale.ethToUsd(2 ether));
+        assertEq(presale.tokensAllocated(ALICE), presale.usdToTokens(0, presale.ethToUsd(2 ether)));
+        assertEq(presale.totalRaisedUSD(), presale.ethToUsd(2 ether));
+        assertEq(presale.roundTokensAllocated(0, ALICE), presale.usdToTokens(0, presale.ethToUsd(2 ether)));
+    }
+
+    function test_success_acrossMultipleRounds() external {
+        vm.warp(1 days + 1);
+
+        vm.prank(ALICE);
+        presale.depositETH{value: 4 ether}();
+
+        assertEq(presale.depositsUSD(ALICE), presale.ethToUsd(4 ether));
+
+        assertEq(presale.tokensAllocated(ALICE), rounds[0].tokenAllocation + presale.usdToTokens(1, 1_000 ether));
+
+        assertEq(presale.roundTokensAllocated(0, ALICE), rounds[0].tokenAllocation);
+        assertEq(presale.roundTokensAllocated(1, ALICE), presale.usdToTokens(1, 1_000 ether));
+
+        assertEq(presale.totalRaisedUSD(), presale.ethToUsd(4 ether));
+    }
+
+    function test_success_refundsOverspentAmount() external {
+        uint256 aliceBalance = ALICE.balance;
+
+        vm.warp(1 days + 1);
+
+        vm.prank(ALICE);
+        presale.depositETH{value: 31 ether}(); // overspending by 0.5 ether
+
+        assertEq(address(presale).balance, 30.5 ether);
+        assertEq(ALICE.balance, aliceBalance - 30.5 ether);
+    }
+
+    function test_rejects_whenNotStarted() external {
+        vm.expectRevert("RAISE_NOT_STARTED");
+
+        vm.prank(ALICE);
+        presale.depositETH{value: 2 ether}();
+    }
+
+    function test_rejects_whenEnded() external {
+        vm.warp(10 days + 1);
+
+        vm.expectRevert("RAISE_ENDED");
+
+        vm.prank(ALICE);
+        presale.depositETH{value: 2 ether}();
+    }
+
+    function test_rejects_whenMinDepositAmount() external {
+    }
+
+    function test_rejects_whenExceedUserCap() external {
+    }
+
+    function test_emits_Deposit() external {
+
+    }
 }
 
 contract PresaleTest_depositUSDC is PresaleTest {

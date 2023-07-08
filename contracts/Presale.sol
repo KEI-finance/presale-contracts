@@ -134,17 +134,31 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         }
     }
 
+    function withdraw() external onlyOwner {
+        address payable _to = $withdrawTo;
+
+        uint256 ethBalance = address(this).balance;
+        uint256 usdcBalance = IERC20(USDC).balanceOf(address(this));
+        uint256 daiBalance = IERC20(DAI).balanceOf(address(this));
+
+        $withdrawTo.transfer(ethBalance);
+        IERC20(USDC).transfer(_to, usdcBalance);
+        IERC20(DAI).transfer(_to, daiBalance);
+
+        emit Withdrawal($withdrawTo, $totalRaisedUSD, msg.sender);
+    }
+
     function depositETH() public payable override whenNotPaused {
         uint256 amountUSD = ethToUsd(msg.value);
 
-        $withdrawTo.transfer(msg.value);
+        payable(address(this)).transfer(msg.value);
         _sync($currentRoundIndex, address(0), amountUSD, _msgSender());
     }
 
     function depositUSDC(uint256 amount) external override whenNotPaused {
         address sender = _msgSender();
 
-        IERC20(USDC).transferFrom(sender, $withdrawTo, amount);
+        IERC20(USDC).transferFrom(sender, address(this), amount);
 
         uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
         _sync($currentRoundIndex, USDC, amountScaled, sender);
@@ -153,13 +167,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function depositDAI(uint256 amount) external override whenNotPaused {
         address sender = _msgSender();
 
-        IERC20(DAI).transferFrom(sender, $withdrawTo, amount);
+        IERC20(DAI).transferFrom(sender, address(this), amount);
         _sync($currentRoundIndex, DAI, amount, sender);
     }
 
-    receive() external payable whenNotPaused {
-        depositETH();
-    }
+    receive() external payable whenNotPaused {}
 
     function _updateDates(uint48 _newStartsAt, uint48 _newEndsAt) private {
         uint48 _startsAt = $startsAt;
@@ -197,6 +209,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 if (_currentRoundIndex == _roundsLength - 1) {
                     uint256 _leftOver = _depositAmount - _availableAllocation;
                     _refund(asset, _leftOver, account);
+                    emit Refund(asset, _leftOver, account);
                 } else {
                     $currentRoundIndex += 1;
                     _currentRoundIndex = $currentRoundIndex;
@@ -218,7 +231,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(amountUSD >= _round.minDepositUSD && _round.minDepositUSD != 0, "MIN_DEPOSIT_AMOUNT");
+        require(amountUSD >= _round.minDepositUSD || _round.minDepositUSD == 0, "MIN_DEPOSIT_AMOUNT");
         require(amountUSD + $roundDepositsUSD[roundIndex][account] <= _round.userCapUSD, "EXCEED_USER_CAP");
 
         uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
