@@ -15,13 +15,15 @@ interface IPresale {
 
     event Deposit(uint256 roundIndex, address indexed asset, uint256 amountUSD, address indexed sender);
 
+    event ConfigUpdated(
+        uint256 prevMinDepositUSD, uint256 newMinDepositUSD, uint256 prevMaxUserAllocation, uint256 newMaxUserAllocation
+    );
+
     event Refund(address asset, uint256 amountUSD, address indexed sender);
 
     struct Round {
         uint256 allocationUSD;
-        uint256 userCapUSD;
-        uint256 minDepositUSD;
-        uint256 tokenAllocation;
+        uint256 allocationTokens;
         uint256 totalRaisedUSD;
     }
 
@@ -35,6 +37,10 @@ interface IPresale {
 
     function currentRoundIndex() external view returns (uint256);
 
+    function minDepositUSD() external view returns (uint256);
+
+    function maxUserAllocation() external view returns (uint256);
+
     function rounds(uint256 roundIndex) external view returns (Round memory);
 
     function totalRounds() external view returns (uint256);
@@ -42,10 +48,6 @@ interface IPresale {
     function totalRaisedUSD() external view returns (uint256);
 
     function raisedUSD(uint256 roundIndex) external view returns (uint256);
-
-    function roundDepositsUSD(uint256 roundIndex, address account) external view returns (uint256);
-
-    function roundTokensAllocated(uint256 roundIndex, address account) external view returns (uint256);
 
     function depositsUSD(address account) external view returns (uint256);
 
@@ -57,9 +59,13 @@ interface IPresale {
 
     function setRounds(Round[] memory rounds) external;
 
+    function setConfig(uint256 minDepositUSD, uint256 maxUserAllocation) external;
+
     function withdraw() external;
 
     function depositETH() external payable;
+
+    function depositETH(address account) external payable;
 
     function depositUSDC(uint256 amount) external;
 

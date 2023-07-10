@@ -28,6 +28,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     Round[] private $rounds;
     uint256 private $currentRoundIndex;
 
+    uint256 private $minDepositUSD;
+    uint256 private $maxUserAllocation;
+
     uint256 private $totalRaisedUSD;
 
     address payable public $withdrawTo;
@@ -35,23 +38,20 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(address => uint256) private $depositsUSD;
     mapping(address => uint256) private $tokensAllocated;
 
-    mapping(uint256 => mapping(address => uint256)) private $roundDepositsUSD;
-    mapping(uint256 => mapping(address => uint256)) private $roundTokensAllocated;
-
     constructor(
         uint48 startsAt_,
         uint48 endsAt_,
-        address payable withdrawTo_,
-        address oracle_,
-        address usdc_,
-        address dai_
+        address payable withdrawTo,
+        address oracle,
+        address usdc,
+        address dai
     ) {
         _updateDates(startsAt_, endsAt_);
-        _setWithdrawTo(withdrawTo_);
+        _setWithdrawTo(withdrawTo);
 
-        ORACLE = AggregatorV3Interface(oracle_);
-        USDC = usdc_;
-        DAI = dai_;
+        ORACLE = AggregatorV3Interface(oracle);
+        USDC = usdc;
+        DAI = dai;
     }
 
     function startsAt() external view override returns (uint48) {
@@ -64,6 +64,14 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function currentRoundIndex() external view override returns (uint256) {
         return $currentRoundIndex;
+    }
+
+    function minDepositUSD() external view returns (uint256) {
+        return $minDepositUSD;
+    }
+
+    function maxUserAllocation() external view returns (uint256) {
+        return $maxUserAllocation;
     }
 
     function rounds(uint256 roundIndex) external view override returns (Round memory) {
@@ -80,14 +88,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function raisedUSD(uint256 roundIndex) external view override returns (uint256) {
         return $rounds[roundIndex].totalRaisedUSD;
-    }
-
-    function roundDepositsUSD(uint256 roundIndex, address account) external view override returns (uint256) {
-        return $roundDepositsUSD[roundIndex][account];
-    }
-
-    function roundTokensAllocated(uint256 roundIndex, address account) external view override returns (uint256) {
-        return $roundTokensAllocated[roundIndex][account];
     }
 
     function depositsUSD(address account) external view override returns (uint256) {
@@ -111,7 +111,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
         Round memory _round = $rounds[roundIndex];
-        return (amount * _round.tokenAllocation) / _round.allocationUSD;
+        return (amount * _round.allocationTokens) / _round.allocationUSD;
     }
 
     function updateDates(uint48 newStartsAt, uint48 newEndsAt) external override onlyOwner {
@@ -132,6 +132,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             $rounds.push(_round);
             emit RoundSet(i, _round, _msgSender());
         }
+    }
+
+    function setConfig(uint256 _minDepositUSD, uint256 _maxUserAllocation) external onlyOwner {
+        emit ConfigUpdated($minDepositUSD, _minDepositUSD, $maxUserAllocation, _maxUserAllocation);
+
+        $minDepositUSD = _minDepositUSD;
+        $maxUserAllocation = _maxUserAllocation;
     }
 
     function withdraw() external onlyOwner {
@@ -155,6 +162,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _sync($currentRoundIndex, address(0), amountUSD, _msgSender());
     }
 
+    function depositETH(address account) public payable override onlyOwner whenNotPaused {
+        uint256 amountUSD = ethToUsd(msg.value);
+
+        payable(address(this)).transfer(msg.value);
+        _sync($currentRoundIndex, address(0), amountUSD, account);
+    }
+
     function depositUSDC(uint256 amount) external override whenNotPaused {
         address sender = _msgSender();
 
@@ -171,7 +185,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _sync($currentRoundIndex, DAI, amount, sender);
     }
 
-    receive() external payable whenNotPaused {}
+    receive() external payable whenNotPaused {
+        uint256 amountUSD = ethToUsd(msg.value);
+        _sync($currentRoundIndex, address(0), amountUSD, _msgSender());
+    }
 
     function _updateDates(uint48 _newStartsAt, uint48 _newEndsAt) private {
         uint48 _startsAt = $startsAt;
@@ -227,19 +244,14 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _deposit(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
-        Round memory _round = $rounds[roundIndex];
+        uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(amountUSD >= _round.minDepositUSD || _round.minDepositUSD == 0, "MIN_DEPOSIT_AMOUNT");
-        require(amountUSD + $roundDepositsUSD[roundIndex][account] <= _round.userCapUSD, "EXCEED_USER_CAP");
-
-        uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
+        require(tokenAllocation >= $minDepositUSD || $minDepositUSD == 0, "MIN_DEPOSIT_AMOUNT");
+        require(tokenAllocation + $tokensAllocated[account] <= $maxUserAllocation, "MAX_USER_ALLOCATION");
 
         $rounds[roundIndex].totalRaisedUSD += amountUSD;
-
-        $roundDepositsUSD[roundIndex][account] += amountUSD;
-        $roundTokensAllocated[roundIndex][account] += tokenAllocation;
 
         $depositsUSD[account] += amountUSD;
         $tokensAllocated[account] += tokenAllocation;

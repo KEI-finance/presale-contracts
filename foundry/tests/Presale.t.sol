@@ -347,15 +347,11 @@ contract PresaleTest_depositETH is PresaleTest {
         presale.depositETH{value: 2 ether}();
     }
 
-    function test_rejects_whenMinDepositAmount() external {
-    }
+    function test_rejects_whenMinDepositAmount() external {}
 
-    function test_rejects_whenExceedUserCap() external {
-    }
+    function test_rejects_whenExceedUserCap() external {}
 
-    function test_emits_Deposit() external {
-
-    }
+    function test_emits_Deposit() external {}
 }
 
 contract PresaleTest_depositUSDC is PresaleTest {
