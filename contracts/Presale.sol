@@ -265,8 +265,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         if (asset == address(0)) {
             uint256 amountInWei = amountUSD * PRECISION / ethPrice();
             payable(account).transfer(amountInWei);
+        } else if (asset == USDC) {
+            IERC20(USDC).transfer(account, amountUSD / USDC_TO_WEI_PRECISION);
         } else {
-            IERC20(asset).transfer(account, amountUSD);
+            IERC20(DAI).transfer(account, amountUSD);
         }
     }
 }
