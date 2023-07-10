@@ -244,11 +244,12 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _deposit(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
+        uint256 _minDepositUSD = $minDepositUSD;
         uint256 tokenAllocation = usdToTokens(roundIndex, amountUSD);
 
         require(block.timestamp >= $startsAt, "RAISE_NOT_STARTED");
         require(block.timestamp <= $endsAt, "RAISE_ENDED");
-        require(tokenAllocation >= $minDepositUSD || $minDepositUSD == 0, "MIN_DEPOSIT_AMOUNT");
+        require(tokenAllocation >= _minDepositUSD || _minDepositUSD == 0, "MIN_DEPOSIT_AMOUNT");
         require(tokenAllocation + $tokensAllocated[account] <= $maxUserAllocation, "MAX_USER_ALLOCATION");
 
         $rounds[roundIndex].totalRaisedUSD += amountUSD;
