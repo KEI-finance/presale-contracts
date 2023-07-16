@@ -99,9 +99,22 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         emit RoundsUpdated($rounds, newRounds, _msgSender());
 
+        uint256 totalRaisedUSD = $totalRaisedUSD;
+
+        uint256 totalCostUSD;
+        uint256 expectedCurrentRoundIndex;
+
         for (uint256 i; i < newRounds.length; ++i) {
             $rounds.push(newRounds[i]);
+
+            uint256 roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice;
+            totalCostUSD += roundCostUSD;
+            if (totalRaisedUSD > totalCostUSD) {
+                expectedCurrentRoundIndex++;
+            }
         }
+
+        $currentRoundIndex = expectedCurrentRoundIndex;
     }
 
     function purchase() public payable override whenNotPaused {
