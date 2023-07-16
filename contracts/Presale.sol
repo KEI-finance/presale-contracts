@@ -99,7 +99,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         emit RoundsUpdated($rounds, newRounds, _msgSender());
 
-        uint256 totalRaisedUSD = $totalRaisedUSD;
+        uint256 _totalRaisedUSD = $totalRaisedUSD;
 
         uint256 totalCostUSD;
         uint256 expectedCurrentRoundIndex;
@@ -109,7 +109,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
             uint256 roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice;
             totalCostUSD += roundCostUSD;
-            if (totalRaisedUSD > totalCostUSD) {
+            if (_totalRaisedUSD > totalCostUSD) {
                 expectedCurrentRoundIndex++;
             }
         }
