@@ -136,11 +136,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function _sync(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
         PresaleConfig memory _config = $config;
         RoundConfig[] memory _rounds = $rounds;
-        uint256 _userTokensAllocated = $userTokensAllocated[account];
 
-        uint256 remainingUSD = amountUSD;
+        uint256 _userTokensAllocated = $userTokensAllocated[account];
         uint256 userAllocationRemaining = _config.maxUserAllocation - _userTokensAllocated;
 
+        uint256 remainingUSD = amountUSD;
         uint256 roundAllocationRemaining;
 
         for (uint256 i = roundIndex; i < _rounds.length; ++i) {
@@ -159,16 +159,16 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             }
 
             if (_tokensAllocated > 0) {
-                uint256 tokensCost = _tokensAllocated * _round.tokenPrice;
-                remainingUSD -= tokensCost;
+                uint256 tokensCostUSD = _tokensAllocated * _round.tokenPrice;
+                remainingUSD -= tokensCostUSD;
 
                 roundAllocationRemaining -= _tokensAllocated;
                 userAllocationRemaining -= _tokensAllocated;
 
                 if (asset == address(0)) {
-                    _deposit(i, asset, tokensCost / ethPrice(), tokensCost, account);
+                    _deposit(i, asset, tokensCostUSD / ethPrice(), tokensCostUSD, account);
                 } else {
-                    _deposit(i, asset, tokensCost, tokensCost, account);
+                    _deposit(i, asset, tokensCostUSD, tokensCostUSD, account);
                 }
             }
         }
