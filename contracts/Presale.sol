@@ -88,6 +88,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
+        require(newConfig.startDate < newConfig.endDate, "INVALID_DATES");
+        require(newConfig.withdrawTo != address(0), "INVALID_WITHDRAW_TO");
+
         emit ConfigUpdated($config, newConfig, _msgSender());
 
         $config = newConfig;
