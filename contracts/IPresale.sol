@@ -3,7 +3,9 @@
 pragma solidity ^0.8.9;
 
 interface IPresale {
-    event Deposit(uint256 indexed roundIndex, address indexed asset, uint256 amountUSD, address indexed sender);
+    event Deposit(
+        uint256 indexed roundIndex, address indexed asset, uint256 amount, uint256 amountUSD, address indexed sender
+    );
 
     event ConfigUpdated(PresaleConfig prevConfig, PresaleConfig newConfig, address indexed sender);
 
