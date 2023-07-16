@@ -28,8 +28,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     PresaleConfig private $config;
     RoundConfig[] private $rounds;
 
-    address payable public $withdrawTo;
-
     mapping(uint256 => uint256) private $raisedUSD;
     mapping(address => uint256) private $userTokensAllocated;
 
