@@ -28,7 +28,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     PresaleConfig private $config;
     RoundConfig[] private $rounds;
 
-    mapping(uint256 => uint256) private $raisedUSD;
+    mapping(uint256 => uint256) private $roundAllocated;
     mapping(address => uint256) private $userTokensAllocated;
 
     constructor(address oracle, address usdc, address dai, PresaleConfig memory config_) {
@@ -59,8 +59,8 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         return $rounds.length;
     }
 
-    function raisedUSD(uint256 roundIndex) external view returns (uint256) {
-        return $raisedUSD[roundIndex];
+    function roundAllocated(uint256 roundIndex) external view returns (uint256) {
+        return $roundAllocated[roundIndex];
     }
 
     function totalRaisedUSD() external view override returns (uint256) {
@@ -99,120 +99,136 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         emit RoundsUpdated($rounds, newRounds, _msgSender());
 
-        uint256 _totalRaisedUSD = $totalRaisedUSD;
+        delete $rounds;
 
-        uint256 totalCostUSD;
-        uint256 expectedCurrentRoundIndex;
+        uint256 _totalCostUSD;
+        uint256 _totalRaisedUSD = $totalRaisedUSD;
+        uint256 _expectedCurrentRoundIndex;
 
         for (uint256 i; i < newRounds.length; ++i) {
             $rounds.push(newRounds[i]);
 
-            uint256 roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice;
-            totalCostUSD += roundCostUSD;
-            if (_totalRaisedUSD > totalCostUSD) {
-                expectedCurrentRoundIndex++;
+            uint256 _roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice;
+            _totalCostUSD += _roundCostUSD;
+            if (_totalRaisedUSD > _totalCostUSD) {
+                _expectedCurrentRoundIndex++;
             }
         }
 
-        $currentRoundIndex = expectedCurrentRoundIndex;
+        $currentRoundIndex = _expectedCurrentRoundIndex;
     }
 
     function purchase() public payable override whenNotPaused {
-        uint256 amountUSD = ethToUsd(msg.value);
-        _sync($currentRoundIndex, address(0), amountUSD, _msgSender());
+        uint256 _amountUSD = ethToUsd(msg.value);
+        _sync($currentRoundIndex, address(0), msg.value, _amountUSD, _msgSender());
     }
 
     function purchase(address account) public payable override whenNotPaused {
-        uint256 amountUSD = ethToUsd(msg.value);
-        _sync($currentRoundIndex, address(0), amountUSD, account);
+        uint256 _amountUSD = ethToUsd(msg.value);
+        _sync($currentRoundIndex, address(0), msg.value, _amountUSD, account);
     }
 
     function purchaseUSDC(uint256 amount) external override whenNotPaused {
-        address sender = _msgSender();
+        address _sender = _msgSender();
 
-        IERC20(USDC).transferFrom(sender, address(this), amount);
+        IERC20(USDC).transferFrom(_sender, address(this), amount);
 
-        uint256 amountScaled = amount * USDC_TO_WEI_PRECISION;
-        _sync($currentRoundIndex, USDC, amountScaled, sender);
+        uint256 _amountScaled = amount * USDC_TO_WEI_PRECISION;
+        _sync($currentRoundIndex, USDC, _amountScaled, _amountScaled, _sender);
     }
 
     function purchaseDAI(uint256 amount) external override whenNotPaused {
-        address sender = _msgSender();
+        address _sender = _msgSender();
 
-        IERC20(DAI).transferFrom(sender, address(this), amount);
-        _sync($currentRoundIndex, DAI, amount, sender);
+        IERC20(DAI).transferFrom(_sender, address(this), amount);
+        _sync($currentRoundIndex, DAI, amount, amount, _sender);
     }
 
     receive() external payable {
         purchase();
     }
 
-    function _sync(uint256 roundIndex, address asset, uint256 amountUSD, address account) private {
+    function _sync(uint256 roundIndex, address asset, uint256 amountAsset, uint256 amountUSD, address account)
+        private
+    {
         PresaleConfig memory _config = $config;
         RoundConfig[] memory _rounds = $rounds;
-
-        uint256 _userTokensAllocated = $userTokensAllocated[account];
-        uint256 userAllocationRemaining = _config.maxUserAllocation - _userTokensAllocated;
-
-        uint256 remainingUSD = amountUSD;
-        uint256 roundAllocationRemaining;
-
-        for (uint256 i = roundIndex; i < _rounds.length; ++i) {
-            RoundConfig memory _round = _rounds[i];
-            roundAllocationRemaining = _round.tokensAllocated - ($raisedUSD[i] * _round.tokenPrice);
-
-            if (roundAllocationRemaining == 0) continue;
-
-            uint256 _tokensAllocated = remainingUSD / _round.tokenPrice;
-
-            if (_tokensAllocated > roundAllocationRemaining) {
-                _tokensAllocated = roundAllocationRemaining;
-            }
-            if (_tokensAllocated > userAllocationRemaining) {
-                _tokensAllocated = userAllocationRemaining;
-            }
-
-            if (_tokensAllocated > 0) {
-                uint256 tokensCostUSD = _tokensAllocated * _round.tokenPrice;
-                remainingUSD -= tokensCostUSD;
-
-                roundAllocationRemaining -= _tokensAllocated;
-                userAllocationRemaining -= _tokensAllocated;
-
-                if (asset == address(0)) {
-                    _deposit(i, asset, tokensCostUSD / ethPrice(), tokensCostUSD, account);
-                } else {
-                    _deposit(i, asset, tokensCostUSD, tokensCostUSD, account);
-                }
-            }
-        }
-
-        $userTokensAllocated[account] = _config.maxUserAllocation - userAllocationRemaining;
-
-        if (remainingUSD > 0) {
-            _refund(asset, remainingUSD, account);
-        }
-    }
-
-    function _deposit(uint256 roundIndex, address asset, uint256 amount, uint256 amountUSD, address account) private {
-        PresaleConfig memory _config = $config;
-        RoundConfig memory _round = $rounds[roundIndex];
 
         require(block.timestamp >= _config.startDate, "RAISE_NOT_STARTED");
         require(block.timestamp <= _config.endDate, "RAISE_ENDED");
         require(amountUSD >= _config.minDepositAmount || _config.minDepositAmount == 0, "MIN_DEPOSIT_AMOUNT");
 
-        $raisedUSD[roundIndex] += amountUSD;
+        uint256 _userTokensAllocated = $userTokensAllocated[account];
+        uint256 _userAllocationRemaining = _config.maxUserAllocation - _userTokensAllocated;
+
+        uint256 _remainingUSD = amountUSD;
+        uint256 _roundAllocationRemaining;
+
+        for (uint256 i = roundIndex; i < _rounds.length; ++i) {
+            RoundConfig memory _round = _rounds[i];
+            uint256 _currentlyAllocated = $roundAllocated[i];
+            _roundAllocationRemaining =
+                _currentlyAllocated < _round.tokensAllocated ? _round.tokensAllocated - _currentlyAllocated : 0;
+
+            if (_roundAllocationRemaining == 0) continue;
+
+            uint256 _tokensAllocated = _remainingUSD / _round.tokenPrice;
+
+            if (_tokensAllocated > _roundAllocationRemaining) {
+                _tokensAllocated = _roundAllocationRemaining;
+            }
+            if (_tokensAllocated > _userAllocationRemaining) {
+                _tokensAllocated = _userAllocationRemaining;
+            }
+
+            if (_tokensAllocated > 0) {
+                uint256 _tokensCostUSD = _tokensAllocated * _round.tokenPrice;
+                _remainingUSD -= _tokensCostUSD;
+
+                _roundAllocationRemaining -= _tokensAllocated;
+                _userAllocationRemaining -= _tokensAllocated;
+
+                _deposit(
+                    i,
+                    asset,
+                    _tokensCostUSD * amountAsset / amountUSD,
+                    _tokensCostUSD,
+                    _tokensAllocated,
+                    account,
+                    _config
+                );
+            }
+        }
+
+        $userTokensAllocated[account] = _config.maxUserAllocation - _userAllocationRemaining;
+
+        if (_remainingUSD > 0) {
+            _refund(asset, amountAsset, _remainingUSD * amountAsset / amountUSD, account);
+        }
+    }
+
+    function _deposit(
+        uint256 roundIndex,
+        address asset,
+        uint256 amount,
+        uint256 amountUSD,
+        uint256 tokensAllocated,
+        address account,
+        PresaleConfig memory _config
+    ) private {
+        RoundConfig memory _round = $rounds[roundIndex];
+
+        $roundAllocated[roundIndex] += tokensAllocated;
         $totalRaisedUSD += amountUSD;
 
-        if ($raisedUSD[roundIndex] * _round.tokenPrice == _round.tokensAllocated) {
+        if ($roundAllocated[roundIndex] == _round.tokensAllocated) {
             $currentRoundIndex++;
         }
 
-        emit Deposit(roundIndex, asset, amount, amountUSD, account);
+        emit Receipt(roundIndex, asset, amount, amountUSD, tokensAllocated, account);
     }
 
-    function _refund(address asset, uint256 amountUSD, address account) private {
+    function _refund(address asset, uint256 amountAsset, uint256 amountUSD, address account) private {
         if (asset == USDC) {
             IERC20(USDC).transfer(account, amountUSD / USDC_TO_WEI_PRECISION);
         } else if (asset == DAI) {
@@ -222,6 +238,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             payable(account).transfer(amountInWei);
         }
 
-        emit Refund(asset, amountUSD, account);
+        emit Refund(asset, amountAsset, amountUSD, account);
     }
 }

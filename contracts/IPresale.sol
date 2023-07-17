@@ -7,11 +7,16 @@ interface IPresale {
 
     event RoundsUpdated(RoundConfig[] prevRounds, RoundConfig[] newRounds, address indexed sender);
 
-    event Deposit(
-        uint256 indexed roundIndex, address indexed asset, uint256 amount, uint256 amountUSD, address indexed sender
+    event Receipt(
+        uint256 indexed roundIndex,
+        address indexed asset,
+        uint256 amount,
+        uint256 amountUSD,
+        uint256 tokensAllocated,
+        address indexed sender
     );
 
-    event Refund(address asset, uint256 amountUSD, address indexed sender);
+    event Refund(address asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
 
     struct PresaleConfig {
         uint128 minDepositAmount;
@@ -36,7 +41,7 @@ interface IPresale {
 
     function totalRounds() external view returns (uint256);
 
-    function raisedUSD(uint256 roundIndex) external view returns (uint256);
+    function roundAllocated(uint256 roundIndex) external view returns (uint256);
 
     function totalRaisedUSD() external view returns (uint256);
 
