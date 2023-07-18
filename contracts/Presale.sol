@@ -172,6 +172,8 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function purchaseDAI(uint256 amount) external override whenNotPaused {
         address _sender = _msgSender();
 
+        IERC20(DAI).transferFrom(_sender, address(this), amount);
+
         PurchaseConfig memory _purchaseConfig = PurchaseConfig({
             roundIndex: $currentRoundIndex,
             asset: DAI,
@@ -179,8 +181,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             amountUSD: amount,
             account: _sender
         });
-
-        IERC20(DAI).transferFrom(_sender, address(this), amount);
 
         uint256 _purchaseAmountAsset = _sync(_purchaseConfig);
         IERC20(DAI).transfer($config.withdrawTo, _purchaseAmountAsset);
