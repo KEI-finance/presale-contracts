@@ -7,14 +7,7 @@ interface IPresale {
 
     event RoundsUpdated(RoundConfig[] prevRounds, RoundConfig[] newRounds, address indexed sender);
 
-    event Receipt(
-        uint256 indexed roundIndex,
-        address indexed asset,
-        uint256 amount,
-        uint256 amountUSD,
-        uint256 tokensAllocated,
-        address indexed sender
-    );
+    event Receipt(PurchaseConfig purchaseConfig, uint256 tokensAllocated);
 
     event Refund(address asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
 
@@ -23,12 +16,20 @@ interface IPresale {
         uint128 maxUserAllocation;
         uint48 startDate;
         uint48 endDate;
-        address withdrawTo;
+        address payable withdrawTo;
     }
 
     struct RoundConfig {
         uint256 tokenPrice;
         uint256 tokensAllocated;
+    }
+
+    struct PurchaseConfig {
+        uint256 roundIndex;
+        address asset;
+        uint256 amountAsset;
+        uint256 amountUSD;
+        address account;
     }
 
     function currentRoundIndex() external view returns (uint256);
