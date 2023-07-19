@@ -7,7 +7,15 @@ interface IPresale {
 
     event RoundsUpdated(RoundConfig[] prevRounds, RoundConfig[] newRounds, address indexed sender);
 
-    event Receipt(PurchaseConfig purchaseConfig, uint256 tokensAllocated);
+    event Receipt(
+        uint256 indexed roundIndex,
+        uint256 tokenPrice,
+        address asset,
+        uint256 amountAsset,
+        uint256 amountUSD,
+        uint256 tokensAllocated,
+        address indexed sender
+    );
 
     event Refund(address asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
 
@@ -25,7 +33,6 @@ interface IPresale {
     }
 
     struct PurchaseConfig {
-        uint256 roundIndex;
         address asset;
         uint256 amountAsset;
         uint256 amountUSD;
@@ -52,11 +59,11 @@ interface IPresale {
 
     function setRounds(RoundConfig[] calldata newRounds) external;
 
-    function purchase() external payable;
+    function purchase() external payable returns (uint256);
 
-    function purchase(address account) external payable;
+    function purchase(address account) external payable returns (uint256);
 
-    function purchaseUSDC(uint256 amount) external;
+    function purchaseUSDC(uint256 amount) external returns (uint256);
 
-    function purchaseDAI(uint256 amount) external;
+    function purchaseDAI(uint256 amount) external returns (uint256);
 }
