@@ -193,7 +193,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 _roundAllocation = _userAllocationRemaining;
             }
 
-            require(_roundAllocation >= 1, "MIN_ALLOCATION");
+            require(_roundAllocation > 0, "MIN_ALLOCATION");
 
             uint256 _tokensCostUSD = _roundAllocation * _rounds[i].tokenPrice;
             _remainingUSD -= _tokensCostUSD;
