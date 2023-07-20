@@ -213,9 +213,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             $totalRaisedUSD += _tokensCostUSD;
 
             emit Receipt(
+                purchaseConfig.asset,
                 i,
                 _round.tokenPrice,
-                purchaseConfig.asset,
                 _roundPurchaseAmountAsset,
                 _tokensCostUSD,
                 _roundAllocation,
