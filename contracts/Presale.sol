@@ -84,7 +84,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
         RoundConfig memory _round = $rounds[roundIndex];
-        return amount * _round.tokenPrice;
+        return amount * _round.tokenPrice / PRECISION;
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
@@ -110,7 +110,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         for (uint256 i; i < newRounds.length; ++i) {
             $rounds.push(newRounds[i]);
 
-            uint256 _roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice;
+            uint256 _roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice / PRECISION;
             _totalCostUSD += _roundCostUSD;
             if (_totalRaisedUSD > _totalCostUSD) {
                 _expectedCurrentRoundIndex++;
@@ -179,12 +179,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 i = $currentRoundIndex;
         for (i; i < _rounds.length && _remainingUSD > 0 && _userAllocationRemaining > 0; ++i) {
+            uint256 _roundAllocated = $roundAllocated[i];
             uint256 _roundAllocationRemaining =
-                $roundAllocated[i] < _rounds[i].tokensAllocated ? _rounds[i].tokensAllocated - $roundAllocated[i] : 0;
+                _roundAllocated < _rounds[i].tokensAllocated ? _rounds[i].tokensAllocated - _roundAllocated : 0;
 
             if (_roundAllocationRemaining == 0) continue;
 
-            uint256 _roundAllocation = _remainingUSD / _rounds[i].tokenPrice;
+            uint256 _roundAllocation = _remainingUSD * PRECISION / _rounds[i].tokenPrice;
 
             if (_roundAllocation > _roundAllocationRemaining) {
                 _roundAllocation = _roundAllocationRemaining;
@@ -195,7 +196,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
             require(_roundAllocation > 0, "MIN_ALLOCATION");
 
-            uint256 _tokensCostUSD = _roundAllocation * _rounds[i].tokenPrice;
+            uint256 _tokensCostUSD = _roundAllocation * _rounds[i].tokenPrice / PRECISION;
             _remainingUSD -= _tokensCostUSD;
 
             _userAllocationRemaining -= _roundAllocation;
@@ -204,12 +205,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             uint256 _roundPurchaseAmountAsset = _tokensCostUSD * purchaseConfig.amountAsset / purchaseConfig.amountUSD;
             _totalPurchaseAmountAsset += _roundPurchaseAmountAsset;
 
-            PurchaseConfig memory _roundPurchaseConfig = PurchaseConfig({
-                asset: purchaseConfig.asset,
-                amountAsset: _roundPurchaseAmountAsset,
-                amountUSD: _tokensCostUSD,
-                account: purchaseConfig.account
-            });
+            PurchaseConfig memory _roundPurchaseConfig;
+            _roundPurchaseConfig.asset = purchaseConfig.asset;
+            _roundPurchaseConfig.amountAsset = _roundPurchaseAmountAsset;
+            _roundPurchaseConfig.amountUSD = _tokensCostUSD;
+            _roundPurchaseConfig.account = purchaseConfig.account;
 
             _deposit(i, _rounds[i], _roundPurchaseConfig, _roundAllocation);
 
