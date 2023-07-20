@@ -9,8 +9,8 @@ interface IPresale {
 
     event Receipt(
         uint256 indexed roundIndex,
-        uint256 tokenPrice,
         address indexed asset,
+        uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
         uint256 tokensAllocated,
