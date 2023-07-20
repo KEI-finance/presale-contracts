@@ -13,14 +13,12 @@ import "./IPresale.sol";
 
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     address public immutable USDC;
-
     address public immutable DAI;
-
     AggregatorV3Interface public immutable ORACLE;
 
-    uint256 private immutable PRECISION = 1e18;
-    uint256 private immutable ETH_TO_WEI_PRECISION = 1e10;
-    uint256 private immutable USDC_TO_WEI_PRECISION = 1e12;
+    uint256 private immutable PRECISION = 1e8;
+    uint256 private immutable USD_PRECISION = 1e18;
+    uint256 private immutable USDC_SCALE = 1e12;
 
     uint256 private $currentRoundIndex;
     uint256 private $totalRaisedUSD;
@@ -73,18 +71,16 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function ethPrice() public view returns (uint256) {
         (, int256 price,,,) = ORACLE.latestRoundData();
-        return uint256(uint256(price) * ETH_TO_WEI_PRECISION);
+        return uint256(price);
     }
 
-    function ethToUsd(uint256 amount) public view returns (uint256) {
-        uint256 _ethPrice = ethPrice();
-        uint256 _ethAmountInUsd = (_ethPrice * amount) / PRECISION;
-        return _ethAmountInUsd;
+    function ethToUsd(uint256 amount) public view returns (uint256 _usdAmount) {
+        _usdAmount = (amount * ethPrice()) / PRECISION;
     }
 
     function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
         RoundConfig memory _round = $rounds[roundIndex];
-        return amount * _round.tokenPrice / PRECISION;
+        return amount * _round.tokenPrice / USD_PRECISION;
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
@@ -127,8 +123,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function purchase(address account) public payable override whenNotPaused returns (uint256 allocation) {
         uint256 _amountUSD = ethToUsd(msg.value);
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: address(0), amountAsset: msg.value, amountUSD: _amountUSD, account: account});
+        PurchaseConfig memory _purchaseConfig = PurchaseConfig({
+            asset: address(0),
+            amountAsset: msg.value,
+            amountUSD: _amountUSD,
+            account: account,
+            adminAllocation: false
+        });
 
         allocation = _sync(_purchaseConfig);
     }
@@ -138,10 +139,15 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         IERC20(USDC).transferFrom(_sender, address(this), amount);
 
-        uint256 _amountScaled = amount * USDC_TO_WEI_PRECISION;
+        uint256 _amountScaled = amount * USDC_SCALE;
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: USDC, amountAsset: _amountScaled, amountUSD: _amountScaled, account: _sender});
+        PurchaseConfig memory _purchaseConfig = PurchaseConfig({
+            asset: USDC,
+            amountAsset: amount,
+            amountUSD: _amountScaled,
+            account: _sender,
+            adminAllocation: false
+        });
 
         allocation = _sync(_purchaseConfig);
     }
@@ -151,8 +157,25 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         IERC20(DAI).transferFrom(_sender, address(this), amount);
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: DAI, amountAsset: amount, amountUSD: amount, account: _sender});
+        PurchaseConfig memory _purchaseConfig = PurchaseConfig({
+            asset: DAI,
+            amountAsset: amount,
+            amountUSD: amount,
+            account: _sender,
+            adminAllocation: false
+        });
+
+        allocation = _sync(_purchaseConfig);
+    }
+
+    function allocate(address account, uint256 amountUSD) external override onlyOwner returns (uint256 allocation) {
+        PurchaseConfig memory _purchaseConfig = PurchaseConfig({
+            asset: address(0),
+            amountAsset: amountUSD,
+            amountUSD: amountUSD,
+            account: account,
+            adminAllocation: true
+        });
 
         allocation = _sync(_purchaseConfig);
     }
@@ -179,13 +202,14 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         uint256 i = $currentRoundIndex;
         for (i; i < _rounds.length && _remainingUSD > 0 && _userAllocationRemaining > 0; ++i) {
+            RoundConfig memory _round = _rounds[i];
             uint256 _roundAllocated = $roundAllocated[i];
             uint256 _roundAllocationRemaining =
-                _roundAllocated < _rounds[i].tokensAllocated ? _rounds[i].tokensAllocated - _roundAllocated : 0;
+                _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
             if (_roundAllocationRemaining == 0) continue;
 
-            uint256 _roundAllocation = _remainingUSD * PRECISION / _rounds[i].tokenPrice;
+            uint256 _roundAllocation = _remainingUSD * PRECISION / _round.tokenPrice;
 
             if (_roundAllocation > _roundAllocationRemaining) {
                 _roundAllocation = _roundAllocationRemaining;
@@ -196,7 +220,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
             require(_roundAllocation > 0, "MIN_ALLOCATION");
 
-            uint256 _tokensCostUSD = _roundAllocation * _rounds[i].tokenPrice / PRECISION;
+            uint256 _tokensCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
             _remainingUSD -= _tokensCostUSD;
 
             _userAllocationRemaining -= _roundAllocation;
@@ -210,8 +234,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             _roundPurchaseConfig.amountAsset = _roundPurchaseAmountAsset;
             _roundPurchaseConfig.amountUSD = _tokensCostUSD;
             _roundPurchaseConfig.account = purchaseConfig.account;
+            _roundPurchaseConfig.adminAllocation = purchaseConfig.adminAllocation;
 
-            _deposit(i, _rounds[i], _roundPurchaseConfig, _roundAllocation);
+            _deposit(i, _round, _roundPurchaseConfig, _roundAllocation);
 
             $currentRoundIndex = i;
         }
@@ -219,12 +244,16 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
 
         uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalPurchaseAmountAsset;
-        if (_refundAmountAsset > 0) {
-            _refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, purchaseConfig.account);
-        }
 
-        if (_totalPurchaseAmountAsset > 0) {
-            _forwardToWithdrawTo(purchaseConfig.asset, _totalPurchaseAmountAsset);
+        if (!purchaseConfig.adminAllocation) {
+            if (_refundAmountAsset > 0) {
+                _send(purchaseConfig.asset, _refundAmountAsset, payable(purchaseConfig.account));
+                emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, purchaseConfig.account);
+            }
+
+            if (_totalPurchaseAmountAsset > 0) {
+                _send(purchaseConfig.asset, _totalPurchaseAmountAsset, _config.withdrawTo);
+            }
         }
 
         return _totalAllocation;
@@ -250,26 +279,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         );
     }
 
-    function _refund(address asset, uint256 amountAsset, uint256 amountUSD, address account) private {
-        if (asset == USDC) {
-            IERC20(USDC).transfer(account, amountUSD / USDC_TO_WEI_PRECISION);
-        } else if (asset == DAI) {
-            IERC20(DAI).transfer(account, amountUSD);
-        } else {
-            uint256 amountInWei = amountUSD * PRECISION / ethPrice();
-            payable(account).transfer(amountInWei);
-        }
-
-        emit Refund(asset, amountAsset, amountUSD, account);
-    }
-
-    function _forwardToWithdrawTo(address asset, uint256 amountAsset) private {
-        address payable _withdrawTo = $config.withdrawTo;
-
+    function _send(address asset, uint256 amountAsset, address payable withdrawTo) private {
         if (asset == address(0)) {
-            _withdrawTo.transfer(amountAsset);
+            withdrawTo.transfer(amountAsset);
         } else {
-            IERC20(asset).transfer(_withdrawTo, amountAsset);
+            IERC20(asset).transfer(withdrawTo, amountAsset);
         }
     }
 }

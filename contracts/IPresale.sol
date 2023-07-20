@@ -37,6 +37,7 @@ interface IPresale {
         uint256 amountAsset;
         uint256 amountUSD;
         address account;
+        bool adminAllocation;
     }
 
     function currentRoundIndex() external view returns (uint256);
@@ -66,4 +67,6 @@ interface IPresale {
     function purchaseUSDC(uint256 amount) external returns (uint256);
 
     function purchaseDAI(uint256 amount) external returns (uint256);
+
+    function allocate(address account, uint256 amountUSD) external returns (uint256);
 }
