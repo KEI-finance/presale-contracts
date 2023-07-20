@@ -279,11 +279,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         );
     }
 
-    function _send(address asset, uint256 amountAsset, address payable withdrawTo) private {
+    function _send(address asset, uint256 amountAsset, address payable account) private {
         if (asset == address(0)) {
-            withdrawTo.transfer(amountAsset);
+            account.transfer(amountAsset);
         } else {
-            IERC20(asset).transfer(withdrawTo, amountAsset);
+            IERC20(asset).transfer(account, amountAsset);
         }
     }
 }
