@@ -10,14 +10,14 @@ interface IPresale {
     event Receipt(
         uint256 indexed roundIndex,
         uint256 tokenPrice,
-        address asset,
+        address indexed asset,
         uint256 amountAsset,
         uint256 amountUSD,
         uint256 tokensAllocated,
         address indexed sender
     );
 
-    event Refund(address asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
+    event Refund(address indexed asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
 
     struct PresaleConfig {
         uint128 minDepositAmount;
@@ -37,7 +37,6 @@ interface IPresale {
         uint256 amountAsset;
         uint256 amountUSD;
         address account;
-        bool adminAllocation;
     }
 
     function currentRoundIndex() external view returns (uint256);
