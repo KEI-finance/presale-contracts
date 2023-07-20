@@ -8,6 +8,14 @@ remappings = [
     "eth-gas-reporter/=node_modules/eth-gas-reporter/",
     "hardhat/=node_modules/hardhat/",
 ]
+optimizer = true
+optimizer-runs = 200
+bytecode_hash = "none"
+evm_version = "london"
+extra_output_files = [
+    "metadata"
+]
+ffi = true
 
 [fmt]
 line_length = 120
