@@ -177,8 +177,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _totalAllocation;
         uint256 _totalPurchaseAmountAsset;
 
+        address _asset = purchaseConfig.asset;
+        uint256 _amountAsset = purchaseConfig.amountAsset;
+        uint256 _amountUSD = purchaseConfig.amountUSD;
+        address _account = purchaseConfig.account;
+
         uint256 _remainingUSD = purchaseConfig.amountUSD;
-        uint256 _userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
+        uint256 _userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[_account];
 
         uint256 i = $currentRoundIndex;
         for (i; i < _rounds.length && _remainingUSD > 0 && _userAllocationRemaining > 0; ++i) {
@@ -206,20 +211,20 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             _userAllocationRemaining -= _roundAllocation;
             _totalAllocation += _roundAllocation;
 
-            uint256 _roundPurchaseAmountAsset = _tokensCostUSD * purchaseConfig.amountAsset / purchaseConfig.amountUSD;
+            uint256 _roundPurchaseAmountAsset = _tokensCostUSD * _amountAsset / _amountUSD;
             _totalPurchaseAmountAsset += _roundPurchaseAmountAsset;
 
             $roundAllocated[i] += _roundAllocation;
             $totalRaisedUSD += _tokensCostUSD;
 
             emit Receipt(
-                purchaseConfig.asset,
+                _asset,
                 i,
                 _round.tokenPrice,
                 _roundPurchaseAmountAsset,
                 _tokensCostUSD,
                 _roundAllocation,
-                purchaseConfig.account
+                _account
             );
         }
 
@@ -227,17 +232,17 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         $currentRoundIndex = i;
 
-        $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
+        $userTokensAllocated[_account] = _config.maxUserAllocation - _userAllocationRemaining;
 
-        uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalPurchaseAmountAsset;
+        uint256 _refundAmountAsset = _amountAsset - _totalPurchaseAmountAsset;
 
         if (_refundAmountAsset > 0) {
-            _send(purchaseConfig.asset, _refundAmountAsset, payable(purchaseConfig.account));
-            emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, purchaseConfig.account);
+            _send(_asset, _refundAmountAsset, payable(_account));
+            emit Refund(_asset, _refundAmountAsset, _remainingUSD, _account);
         }
 
         if (_totalPurchaseAmountAsset > 0) {
-            _send(purchaseConfig.asset, _totalPurchaseAmountAsset, _config.withdrawTo);
+            _send(_asset, _totalPurchaseAmountAsset, _config.withdrawTo);
         }
 
         return _totalAllocation;
