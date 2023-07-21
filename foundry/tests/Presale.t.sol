@@ -12,6 +12,10 @@ import "../mocks/MockV3Aggregator.sol";
 contract PresaleTest is Test {
     Presale internal presale;
 
+    uint256 internal immutable PRECISION;
+    uint256 internal immutable USD_PRECISION;
+    uint256 internal immutable USDC_SCALE;
+
     address payable internal GLOBAL_ADMIN;
 
     address internal ALICE;
@@ -22,16 +26,22 @@ contract PresaleTest is Test {
     uint48 internal startDate;
     uint48 internal endDate;
 
+    uint8 internal totalRounds;
+
     TestERC20 internal USDC;
     TestERC20 internal DAI;
     MockV3Aggregator internal ORACLE;
-
     IPresale.PresaleConfig internal config;
+    IPresale.RoundConfig[] internal rounds;
 
     uint256[] internal tokenPrices;
     uint256[] internal tokensAllocated;
 
     constructor() {
+        PRECISION = 1e8;
+        USD_PRECISION = 1e18;
+        USDC_SCALE = 1e12;
+
         GLOBAL_ADMIN = payable(makeAddr("GLOBAL_ADMIN"));
         vm.label(GLOBAL_ADMIN, "GLOBAL_ADMIN");
 
@@ -46,9 +56,11 @@ contract PresaleTest is Test {
         startDate = 1 days;
         endDate = 10 days;
 
+        totalRounds = 7;
+
         USDC = new TestERC20("USDC", "USDC");
         DAI = new TestERC20("DAI", "DAI");
-        ORACLE = new MockV3Aggregator(8, 2000 * 10 ** 8);
+        ORACLE = new MockV3Aggregator(8, int256(2000 * PRECISION));
 
         USDC.setDecimals(6);
 
@@ -62,19 +74,37 @@ contract PresaleTest is Test {
         DAI.mint(BOB, 1_000 ether);
 
         config = IPresale.PresaleConfig({
-            minDepositAmount: 1 ether,
+            minDepositAmount: 1,
             maxUserAllocation: 10_000 ether,
             startDate: startDate,
             endDate: endDate,
             withdrawTo: withdrawTo
         });
 
-        tokenPrices = [1];
-        tokensAllocated = [1];
+        tokenPrices = [
+            14285714285700000000,
+            14285714285700000000,
+            12500000000000000000,
+            12500000000000000000,
+            11111111111100000000,
+            11111111111100000000,
+            10000000000000000000
+        ];
+
+        for (uint256 i; i < totalRounds; ++i) {
+            tokensAllocated.push(10_000 * PRECISION);
+
+            IPresale.RoundConfig memory _round = IPresale.RoundConfig({
+                tokenPrice: tokenPrices[i],
+                tokensAllocated: tokensAllocated[i]
+            });
+            rounds.push(_round);
+        }
 
         vm.startPrank(GLOBAL_ADMIN);
         presale = new Presale(address(ORACLE), address(USDC), address(DAI), config);
         presale.setConfig(config);
+        presale.setRounds(rounds);
         vm.stopPrank();
 
         vm.startPrank(ALICE);
@@ -95,7 +125,14 @@ contract PresaleTest is Test {
 }
 
 contract PresaleTest_currentRoundIndex is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        vm.warp(startDate + 1);
+
+        vm.prank(ALICE);
+        presale.purchaseUSDC(701 * (10 ** 6));
+
+        assertEq(presale.currentRoundIndex(), 1);
+    }
 }
 
 contract PresaleTest_config is PresaleTest {
@@ -111,7 +148,14 @@ contract PresaleTest_config is PresaleTest {
 }
 
 contract PresaleTest_round is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        for (uint256 i; i < totalRounds; ++i) {
+            IPresale.RoundConfig memory _round = presale.round(i);
+
+            assertEq(_round.tokenPrice, tokenPrices[i]);
+            assertEq(_round.tokensAllocated, tokensAllocated[i]);
+        }
+    }
 }
 
 contract PresaleTest_rounds is PresaleTest {
