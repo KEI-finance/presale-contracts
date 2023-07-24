@@ -75,20 +75,23 @@ contract PresaleTest is Test {
 
         config = IPresale.PresaleConfig({
             minDepositAmount: 1,
-            maxUserAllocation: 10_000 ether,
+            maxUserAllocation: uint128(70_000 * PRECISION),
             startDate: startDate,
             endDate: endDate,
             withdrawTo: withdrawTo
         });
 
+        // tokenPrice = how many tokens for 1 usd
+        // tokens allocated in round = _roundRemaining * tokenPrice;
+
         tokenPrices = [
-            14285714285700000000,
-            14285714285700000000,
-            12500000000000000000,
-            12500000000000000000,
-            11111111111100000000,
-            11111111111100000000,
-            10000000000000000000
+            70000000000000000,
+            70000000000000000,
+            80000000000000000,
+            80000000000000000,
+            90000000000000000,
+            90000000000000000,
+            100000000000000000
         ];
 
         for (uint256 i; i < totalRounds; ++i) {
@@ -98,6 +101,7 @@ contract PresaleTest is Test {
                 tokenPrice: tokenPrices[i],
                 tokensAllocated: tokensAllocated[i]
             });
+
             rounds.push(_round);
         }
 

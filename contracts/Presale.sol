@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./IPresale.sol";
 
+import "forge-std/console.sol";
+
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     address public immutable USDC;
     address public immutable DAI;
@@ -194,7 +196,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
             if (_roundAllocationRemaining == 0) continue;
 
-            uint256 _roundAllocation = _remainingUSD * PRECISION / _round.tokenPrice;
+            uint256 _roundAllocation = (_remainingUSD * PRECISION) / _round.tokenPrice;
 
             if (_roundAllocation > _roundAllocationRemaining) {
                 _roundAllocation = _roundAllocationRemaining;
@@ -203,9 +205,18 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 _roundAllocation = _userAllocationRemaining;
             }
 
-            require(_roundAllocation > 0, "MIN_ROUND_ALLOCATION");
+            console.log('round', i);
+            console.log("_roundAllocation", _roundAllocation);
+            console.log("_remainingUSD", _remainingUSD);
+            console.log("_roundAllocationRemaining", _roundAllocationRemaining);
+            console.log("_userAllocationRemaining", _userAllocationRemaining);
+
+            if (_roundAllocation == 0) {
+                break;
+            }
 
             uint256 _tokensCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
+            console.log(_tokensCostUSD);
             _remainingUSD -= _tokensCostUSD;
 
             _userAllocationRemaining -= _roundAllocation;
