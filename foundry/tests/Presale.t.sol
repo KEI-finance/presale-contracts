@@ -67,11 +67,11 @@ contract PresaleTest is Test {
         vm.deal(ALICE, 1_000 ether);
         vm.deal(BOB, 1_000 ether);
 
-        USDC.mint(ALICE, 1_000 * 10 ** 6);
-        USDC.mint(BOB, 1_000 * 10 ** 6);
+        USDC.mint(ALICE, 100_000 * 10 ** 6);
+        USDC.mint(BOB, 100_000 * 10 ** 6);
 
-        DAI.mint(ALICE, 1_000 ether);
-        DAI.mint(BOB, 1_000 ether);
+        DAI.mint(ALICE, 100_000 ether);
+        DAI.mint(BOB, 100_000 ether);
 
         config = IPresale.PresaleConfig({
             minDepositAmount: 1,
@@ -80,9 +80,6 @@ contract PresaleTest is Test {
             endDate: endDate,
             withdrawTo: withdrawTo
         });
-
-        // tokenPrice = how many tokens for 1 usd
-        // tokens allocated in round = _roundRemaining * tokenPrice;
 
         tokenPrices = [
             70000000000000000,
@@ -97,10 +94,8 @@ contract PresaleTest is Test {
         for (uint256 i; i < totalRounds; ++i) {
             tokensAllocated.push(10_000 * PRECISION);
 
-            IPresale.RoundConfig memory _round = IPresale.RoundConfig({
-                tokenPrice: tokenPrices[i],
-                tokensAllocated: tokensAllocated[i]
-            });
+            IPresale.RoundConfig memory _round =
+                IPresale.RoundConfig({tokenPrice: tokenPrices[i], tokensAllocated: tokensAllocated[i]});
 
             rounds.push(_round);
         }
@@ -133,9 +128,14 @@ contract PresaleTest_currentRoundIndex is PresaleTest {
         vm.warp(startDate + 1);
 
         vm.prank(ALICE);
-        presale.purchaseUSDC(701 * (10 ** 6));
+        presale.purchaseUSDC(701 * 1e6);
 
         assertEq(presale.currentRoundIndex(), 1);
+
+        vm.prank(BOB);
+        presale.purchaseDAI(700 * 1e18);
+
+        assertEq(presale.currentRoundIndex(), 2);
     }
 }
 
@@ -163,19 +163,77 @@ contract PresaleTest_round is PresaleTest {
 }
 
 contract PresaleTest_rounds is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        IPresale.RoundConfig[] memory _rounds = presale.rounds();
+
+        for (uint256 i; i < totalRounds; ++i) {
+            assertEq(_rounds[i].tokenPrice, rounds[i].tokenPrice);
+            assertEq(_rounds[i].tokensAllocated, rounds[i].tokensAllocated);
+        }
+    }
 }
 
 contract PresaleTest_totalRounds is PresaleTest {
-    function test_success() external {}
+    function test_success() external {
+        assertEq(presale.totalRounds(), totalRounds);
+    }
 }
 
 contract PresaleTest_roundAllocated is PresaleTest {
-    function test_success() external {}
+    uint256 private _availableToPurchaseUSD;
+
+    function setUp() public {
+        IPresale.RoundConfig memory _round = rounds[0];
+
+        _availableToPurchaseUSD = _round.tokenPrice * _round.tokensAllocated / 1e26;
+
+        vm.warp(startDate + 1);
+
+        vm.prank(ALICE);
+        presale.purchaseUSDC(_availableToPurchaseUSD * 1e6);
+    }
+
+    function test_success() external {
+        assertEq(presale.roundAllocated(0), tokensAllocated[0] * PRECISION);
+    }
 }
 
 contract PresaleTest_totalRaisedUSD is PresaleTest {
-    function test_success() external {}
+    uint256 private _totalCostUSD;
+    uint256[] private purchaseAmountsUSD;
+
+    function setUp() public {
+        vm.warp(startDate + 1);
+
+        purchaseAmountsUSD = [700, 700, 800, 800, 100];
+
+        //        uint256 _round1PurchaseAmountUSD = 700 * USD_PRECISION;
+        //        uint256 _round2PurchaseAmountUSD = 700 * USD_PRECISION;
+        //        uint256 _round3PurchaseAmountUSD = 800 * USD_PRECISION;
+        //        uint256 _round4PurchaseAmountUSD = 100 * USD_PRECISION;
+        //
+        //        uint256 _round1Allocation = _round1PurchaseAmountUSD * PRECISION / rounds[0].tokenPrice;
+        //        uint256 _round2Allocation = _round2PurchaseAmountUSD * PRECISION / rounds[1].tokenPrice;
+        //        uint256 _round3Allocation = _round3PurchaseAmountUSD * PRECISION / rounds[2].tokenPrice;
+        //        uint256 _round4Allocation = _round4PurchaseAmountUSD * PRECISION / rounds[3].tokenPrice;
+        //
+        //        uint256 _round1CostUSD = _round1PurchaseAmountUSD * rounds[0].tokenPrice / PRECISION;
+        //        uint256 _round2CostUSD = _round2PurchaseAmountUSD * rounds[1].tokenPrice / PRECISION;
+        //        uint256 _round3CostUSD = _round3PurchaseAmountUSD * rounds[2].tokenPrice / PRECISION;
+        //        uint256 _round4CostUSD = _round4PurchaseAmountUSD * rounds[3].tokenPrice / PRECISION;
+        //
+        //        _totalCostUSD += _round1CostUSD;
+        //        _totalCostUSD += _round2CostUSD;
+        //        _totalCostUSD += _round3CostUSD;
+        //        _totalCostUSD += _round4CostUSD;
+
+        vm.prank(ALICE);
+        presale.purchaseUSDC(2300 * 1e6);
+    }
+
+    function test_success() external {
+        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+    }
 }
 
 contract PresaleTest_userTokensAllocated is PresaleTest {
@@ -207,6 +265,19 @@ contract PresaleTest_setConfig is PresaleTest {
 }
 
 contract PresaleTest_setRounds is PresaleTest {
+    IPresale.RoundConfig[] internal _newRounds;
+    uint256 internal _totalRounds;
+
+    function setUp() public {
+        _totalRounds = 10;
+
+        for (uint256 i; i < _totalRounds; ++i) {
+            IPresale.RoundConfig memory _round = IPresale.RoundConfig({tokenPrice: i * 10, tokensAllocated: i * 100});
+
+            _newRounds.push(_round);
+        }
+    }
+
     function test_success() external {}
 
     function test_rejects_whenNotOwner() external {}
