@@ -80,9 +80,23 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _usdAmount = (amount * ethPrice()) / PRECISION;
     }
 
+    function ethToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256 _tokenAmount) {
+        RoundConfig memory _round = $rounds[roundIndex];
+        uint256 _usdAmount = amount * ethPrice() / PRECISION;
+        _tokenAmount = _usdAmount * _round.tokenPrice / (USD_PRECISION * PRECISION);
+    }
+
     function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
         RoundConfig memory _round = $rounds[roundIndex];
         return amount * _round.tokenPrice / USD_PRECISION;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
@@ -97,7 +111,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         emit RoundsUpdated($rounds, newRounds, _msgSender());
 
-        for (uint256 i; i < $rounds.length; ++i) {
+        while ($rounds.length != 0) {
             $rounds.pop();
         }
 
@@ -124,8 +138,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function purchase(address account) public payable override whenNotPaused returns (uint256 allocation) {
         uint256 _amountUSD = ethToUsd(msg.value);
-
-        console.log("_amountUSD", _amountUSD);
 
         PurchaseConfig memory _purchaseConfig =
             PurchaseConfig({asset: address(0), amountAsset: msg.value, amountUSD: _amountUSD, account: account});
@@ -225,7 +237,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             $roundAllocated[i] += _roundAllocation;
             $totalRaisedUSD += _tokensCostUSD;
 
-            emit Receipt(
+            emit Purchase(
                 i,
                 purchaseConfig.asset,
                 _round.tokenPrice,

@@ -7,7 +7,7 @@ interface IPresale {
 
     event RoundsUpdated(RoundConfig[] prevRounds, RoundConfig[] newRounds, address indexed sender);
 
-    event Receipt(
+    event Purchase(
         uint256 indexed roundIndex,
         address indexed asset,
         uint256 tokenPrice,
