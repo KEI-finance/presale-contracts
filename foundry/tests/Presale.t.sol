@@ -527,7 +527,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.warp(startDate + 1);
 
         vm.prank(ALICE);
-        presale.purchase{value: 2.5 ether}(); // 5k usd worth
+        presale.purchase{value: 2.5 ether}();
 
         for (uint256 i; i < _purchaseAmountsUSD.length; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
@@ -574,12 +574,12 @@ contract PresaleTest_purchase is PresaleTest {
     }
 
     function test_rejects_whenMinDepositAmount() external {
-        //        vm.warp(startDate + 1);
-        //
-        //        vm.expectRevert("MIN_DEPOSIT_AMOUNT");
-        //
-        //        vm.prank(GLOBAL_ADMIN);
-        //        presale.purchase{value: 1}();
+        vm.warp(startDate + 1);
+
+        vm.expectRevert("MIN_DEPOSIT_AMOUNT");
+
+        vm.prank(GLOBAL_ADMIN);
+        presale.purchase{value: 0.0004 ether}();
     }
 
     function test_emits_Purchase() external assertEvent {
