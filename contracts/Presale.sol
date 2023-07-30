@@ -250,7 +250,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         require(_totalAllocation > 0, "MIN_ALLOCATION");
 
-        $currentRoundIndex = i;
+        $currentRoundIndex = i < _rounds.length ? i : _rounds.length - 1;
 
         $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
 

@@ -526,27 +526,37 @@ contract PresaleTest_purchase is PresaleTest {
         address indexed sender
     );
 
-    uint256 _purchaseAmountUSD;
-    uint256 _purchaseAmountETH;
-
     uint256 _totalCostUSD;
     uint256 _totalAllocation;
 
+    uint256 _alicePurchaseAmountUSD;
+    uint256 _alicePurchaseAmountETH;
     uint256 _aliceTotalCostUSD;
     uint256 _aliceAllocationRemaining;
 
+    uint256 _bobPurchaseAmountUSD;
+    uint256 _bobPurchaseAmountETH;
+    uint256 _bobTotalCostUSD;
+    uint256 _bobAllocationRemaining;
+
     uint256 _aliceEthBalance;
+    uint256 _bobEthBalance;
     uint256 _withdrawToEthBalance;
 
     function setUp() public {
-        _purchaseAmountUSD = 5000 ether;
-        _purchaseAmountETH = 2.5 ether;
+        _alicePurchaseAmountUSD = 5_000 ether;
+        _alicePurchaseAmountETH = 2.5 ether;
+
+        _bobPurchaseAmountUSD = 3_000 ether;
+        _bobPurchaseAmountETH = 1.5 ether;
 
         _aliceAllocationRemaining = config.maxUserAllocation;
+        _bobAllocationRemaining = config.maxUserAllocation;
     }
 
     function test_success() external {
         _aliceEthBalance = ALICE.balance;
+        _bobEthBalance = BOB.balance;
         _withdrawToEthBalance = address(config.withdrawTo).balance;
 
         vm.warp(startDate);
@@ -557,7 +567,7 @@ contract PresaleTest_purchase is PresaleTest {
 
             if (_roundAllocationRemaining == 0) continue;
 
-            uint256 _roundAllocation = _purchaseAmountUSD * PRECISION / _round.tokenPrice;
+            uint256 _roundAllocation = _alicePurchaseAmountUSD * PRECISION / _round.tokenPrice;
             _totalAllocation += _roundAllocation;
 
             if (_roundAllocation > _roundAllocationRemaining) {
@@ -568,22 +578,62 @@ contract PresaleTest_purchase is PresaleTest {
 
             uint256 _tokenCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
 
-            _purchaseAmountUSD -= _tokenCostUSD;
-            _totalCostUSD += _tokenCostUSD;
+            _alicePurchaseAmountUSD -= _tokenCostUSD;
             _aliceTotalCostUSD += _tokenCostUSD;
 
-            if (_purchaseAmountUSD == 0) {
+            _totalCostUSD += _tokenCostUSD;
+
+            if (_alicePurchaseAmountUSD == 0) {
                 break;
             }
         }
 
         vm.prank(ALICE);
-        presale.purchase{value: _purchaseAmountETH}();
+        presale.purchase{value: _alicePurchaseAmountETH}();
 
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), config.maxUserAllocation - _aliceAllocationRemaining);
 
         assertEq(ALICE.balance, _aliceEthBalance - (_aliceTotalCostUSD / 2_000));
+        assertEq(address(config.withdrawTo).balance, _withdrawToEthBalance + (_totalCostUSD / 2_000));
+
+        console.log("latest round", presale.currentRoundIndex());
+        for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
+            IPresale.RoundConfig memory _round = presale.round(i);
+            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocationRemaining =
+                _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
+
+            if (_roundAllocationRemaining == 0) continue;
+
+            uint256 _roundAllocation = _bobPurchaseAmountUSD * PRECISION / _round.tokenPrice;
+            _totalAllocation += _roundAllocation;
+
+            if (_roundAllocation > _roundAllocationRemaining) {
+                _roundAllocation = _roundAllocationRemaining;
+            }
+
+            _bobAllocationRemaining -= _roundAllocation;
+
+            uint256 _tokenCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
+
+            _bobPurchaseAmountUSD -= _tokenCostUSD;
+            _bobTotalCostUSD += _tokenCostUSD;
+
+            _totalCostUSD += _tokenCostUSD;
+
+            if (_bobPurchaseAmountUSD == 0) {
+                break;
+            }
+        }
+
+        vm.prank(BOB);
+        presale.purchase{value: _bobPurchaseAmountETH}();
+
+        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.userTokensAllocated(BOB), config.maxUserAllocation - _bobAllocationRemaining);
+
+        assertEq(BOB.balance, _bobEthBalance - (_bobTotalCostUSD / 2_000));
         assertEq(address(config.withdrawTo).balance, _withdrawToEthBalance + (_totalCostUSD / 2_000));
     }
 
@@ -594,7 +644,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("Pausable: paused");
 
         vm.prank(ALICE);
-        presale.purchase{value: _purchaseAmountETH}();
+        presale.purchase{value: _alicePurchaseAmountETH}();
     }
 
     function test_rejects_whenRaiseNotStarted() external {
@@ -603,7 +653,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("RAISE_NOT_STARTED");
 
         vm.prank(ALICE);
-        presale.purchase{value: _purchaseAmountETH}();
+        presale.purchase{value: _alicePurchaseAmountETH}();
     }
 
     function test_rejects_whenRaiseEnded() external {
@@ -612,7 +662,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("RAISE_ENDED");
 
         vm.prank(ALICE);
-        presale.purchase{value: _purchaseAmountETH}();
+        presale.purchase{value: _alicePurchaseAmountETH}();
     }
 
     function test_rejects_whenMinDepositAmount() external {
@@ -633,7 +683,7 @@ contract PresaleTest_purchase is PresaleTest {
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
-            uint256 _roundAllocation = _purchaseAmountUSD * PRECISION / _round.tokenPrice;
+            uint256 _roundAllocation = _alicePurchaseAmountUSD * PRECISION / _round.tokenPrice;
 
             if (_roundAllocation > _roundAllocationRemaining) {
                 _roundAllocation = _roundAllocationRemaining;
@@ -648,21 +698,21 @@ contract PresaleTest_purchase is PresaleTest {
                 i,
                 address(0),
                 _round.tokenPrice,
-                _tokenCostUSD * _purchaseAmountETH / _purchaseAmountUSD,
+                _tokenCostUSD * _alicePurchaseAmountETH / _alicePurchaseAmountUSD,
                 _tokenCostUSD,
                 _roundAllocation,
                 ALICE
             );
 
-            _purchaseAmountUSD -= _tokenCostUSD;
+            _alicePurchaseAmountUSD -= _tokenCostUSD;
 
-            if (_purchaseAmountUSD == 0) {
+            if (_alicePurchaseAmountUSD == 0) {
                 break;
             }
         }
 
         vm.prank(ALICE);
-        presale.purchase{value: _purchaseAmountETH}();
+        presale.purchase{value: _alicePurchaseAmountETH}();
     }
 }
 
