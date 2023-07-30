@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./IPresale.sol";
 
-import "forge-std/console.sol";
-
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     address public immutable USDC;
     address public immutable DAI;
@@ -219,12 +217,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 break;
             }
 
-            console.log("_round", i);
-            console.log("_remainingUSD", _remainingUSD);
-            console.log("_roundAllocation", _roundAllocation);
-            console.log("_userAllocationRemaining", _userAllocationRemaining);
-            console.log("_roundAllocationRemaining", _roundAllocationRemaining);
-
             uint256 _tokensCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
             _remainingUSD -= _tokensCostUSD;
 
@@ -257,8 +249,8 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalPurchaseAmountAsset;
 
         if (_refundAmountAsset > 0) {
-            _send(purchaseConfig.asset, _refundAmountAsset, payable(purchaseConfig.account));
-            emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, purchaseConfig.account);
+            _send(purchaseConfig.asset, _refundAmountAsset, payable(_msgSender()));
+            emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, _msgSender());
         }
 
         if (_totalPurchaseAmountAsset > 0) {
