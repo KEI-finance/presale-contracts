@@ -37,6 +37,21 @@ contract PresaleTest is Test {
     uint256[] internal tokenPrices;
     uint256[] internal tokensAllocated;
 
+    uint256 internal aliceAllocationRemaining;
+    uint256 internal bobAllocationRemaining;
+
+    uint256 internal aliceEthBalance;
+    uint256 internal bobEthBalance;
+    uint256 internal withdrawToEthBalance;
+
+    uint256 internal aliceUsdcBalance;
+    uint256 internal bobUsdcBalance;
+    uint256 internal withdrawToUsdcBalance;
+
+    uint256 internal aliceDaiBalance;
+    uint256 internal bobDaiBalance;
+    uint256 internal withdrawToDaiBalance;
+
     constructor() {
         PRECISION = 1e8;
         USD_PRECISION = 1e18;
@@ -108,6 +123,21 @@ contract PresaleTest is Test {
         USDC.approve(address(presale), type(uint256).max);
         DAI.approve(address(presale), type(uint256).max);
         vm.stopPrank();
+
+        aliceAllocationRemaining = config.maxUserAllocation;
+        bobAllocationRemaining = config.maxUserAllocation;
+
+        aliceEthBalance = ALICE.balance;
+        bobEthBalance = BOB.balance;
+        withdrawToEthBalance = address(config.withdrawTo).balance;
+
+        aliceUsdcBalance = USDC.balanceOf(ALICE);
+        bobUsdcBalance = USDC.balanceOf(BOB);
+        withdrawToUsdcBalance = USDC.balanceOf(address(config.withdrawTo));
+
+        aliceDaiBalance = DAI.balanceOf(ALICE);
+        bobDaiBalance = DAI.balanceOf(BOB);
+        withdrawToDaiBalance = DAI.balanceOf(address(config.withdrawTo));
     }
 
     modifier assertEvent() {
@@ -524,39 +554,25 @@ contract PresaleTest_purchase is PresaleTest {
         address indexed sender
     );
 
-    uint256 _totalCostUSD;
-    uint256 _totalAllocation;
+    uint256 private _totalCostUSD;
+    uint256 private _totalAllocation;
 
-    uint256 _alicePurchaseAmountUSD;
-    uint256 _alicePurchaseAmountETH;
-    uint256 _aliceTotalCostUSD;
-    uint256 _aliceAllocationRemaining;
+    uint256 private _alicePurchaseAmountUSD;
+    uint256 private _aliceTotalCostUSD;
 
-    uint256 _bobPurchaseAmountUSD;
-    uint256 _bobPurchaseAmountETH;
-    uint256 _bobTotalCostUSD;
-    uint256 _bobAllocationRemaining;
+    uint256 private _bobPurchaseAmountUSD;
+    uint256 private _bobTotalCostUSD;
 
-    uint256 _aliceEthBalance;
-    uint256 _bobEthBalance;
-    uint256 _withdrawToEthBalance;
+    function test_success(uint256 _alicePurchaseAmountETH, uint256 _bobPurchaseAmountETH) external {
+        vm.assume(_alicePurchaseAmountETH != 0);
+        vm.assume(_bobPurchaseAmountETH != 0);
 
-    function setUp() public {
-        _alicePurchaseAmountUSD = 1_223 ether;
-        _alicePurchaseAmountETH = 0.6115 ether;
+        _alicePurchaseAmountETH = bound(_alicePurchaseAmountETH, 1 ether, _aliceEthBalance);
+        _bobPurchaseAmountETH = bound(_bobPurchaseAmountETH, 1 ether, _bobEthBalance);
 
-        _bobPurchaseAmountUSD = 3_000 ether;
-        _bobPurchaseAmountETH = 1.5 ether;
+        _alicePurchaseAmountUSD = _alicePurchaseAmountETH * 2000;
+        _bobPurchaseAmountUSD = _bobPurchaseAmountETH * 2000;
 
-        _aliceAllocationRemaining = config.maxUserAllocation;
-        _bobAllocationRemaining = config.maxUserAllocation;
-
-        _aliceEthBalance = ALICE.balance;
-        _bobEthBalance = BOB.balance;
-        _withdrawToEthBalance = address(config.withdrawTo).balance;
-    }
-
-    function test_success() external {
         vm.warp(startDate);
 
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
@@ -589,7 +605,6 @@ contract PresaleTest_purchase is PresaleTest {
         vm.prank(ALICE);
         presale.purchase{value: _alicePurchaseAmountETH}();
 
-        assertEq(presale.currentRoundIndex(), 1);
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), config.maxUserAllocation - _aliceAllocationRemaining);
 
@@ -628,7 +643,6 @@ contract PresaleTest_purchase is PresaleTest {
         vm.prank(BOB);
         presale.purchase{value: _bobPurchaseAmountETH}();
 
-        assertEq(presale.currentRoundIndex(), 5);
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), config.maxUserAllocation - _bobAllocationRemaining);
 
@@ -643,7 +657,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("Pausable: paused");
 
         vm.prank(ALICE);
-        presale.purchase{value: _alicePurchaseAmountETH}();
+        presale.purchase{value: 1 ether}();
     }
 
     function test_rejects_whenRaiseNotStarted() external {
@@ -652,7 +666,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("RAISE_NOT_STARTED");
 
         vm.prank(ALICE);
-        presale.purchase{value: _alicePurchaseAmountETH}();
+        presale.purchase{value: 1 ether}();
     }
 
     function test_rejects_whenRaiseEnded() external {
@@ -661,7 +675,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.expectRevert("RAISE_ENDED");
 
         vm.prank(ALICE);
-        presale.purchase{value: _alicePurchaseAmountETH}();
+        presale.purchase{value: 1 ether}();
     }
 
     function test_rejects_whenMinDepositAmount() external {
@@ -674,6 +688,10 @@ contract PresaleTest_purchase is PresaleTest {
     }
 
     function test_emits_Purchase() external assertEvent {
+        _alicePurchaseAmountUSD = 1_234 ether;
+
+        uint256 _alicePurchaseAmountETH = _alicePurchaseAmountUSD / 2000;
+
         vm.warp(startDate);
 
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
@@ -726,39 +744,22 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         address indexed sender
     );
 
-    uint256 _totalCostUSD;
-    uint256 _totalAllocation;
+    uint256 private _totalCostUSD;
+    uint256 private _totalAllocation;
 
-    uint256 _alicePurchaseAmountUSD;
-    uint256 _alicePurchaseAmountETH;
-    uint256 _aliceTotalCostUSD;
-    uint256 _aliceAllocationRemaining;
+    uint256 private _aliceTotalCostUSD;
+    uint256 private _bobTotalCostUSD;
 
-    uint256 _bobPurchaseAmountUSD;
-    uint256 _bobPurchaseAmountETH;
-    uint256 _bobTotalCostUSD;
-    uint256 _bobAllocationRemaining;
+    function test_success(uint256 _alicePurchaseAmountETH, uint256 _bobPurchaseAmountETH) external {
+        vm.assume(_alicePurchaseAmountETH != 0);
+        vm.assume(_bobPurchaseAmountETH != 0);
 
-    uint256 _aliceEthBalance;
-    uint256 _bobEthBalance;
-    uint256 _withdrawToEthBalance;
+        _alicePurchaseAmountETH = bound(_alicePurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance);
+        _bobPurchaseAmountETH = bound(_bobPurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance);
 
-    function setUp() public {
-        _alicePurchaseAmountUSD = 4_321 ether;
-        _alicePurchaseAmountETH = 2.1605 ether;
+        uint256 _alicePurchaseAmountUSD = _alicePurchaseAmountETH * (presale.ethPrice() / PRECISION);
+        uint256 _bobPurchaseAmountUSD = _bobPurchaseAmountETH * (presale.ethPrice() / PRECISION);
 
-        _bobPurchaseAmountUSD = 1_234 ether;
-        _bobPurchaseAmountETH = 0.617 ether;
-
-        _aliceAllocationRemaining = config.maxUserAllocation;
-        _bobAllocationRemaining = config.maxUserAllocation;
-
-        _aliceEthBalance = ALICE.balance;
-        _bobEthBalance = BOB.balance;
-        _withdrawToEthBalance = address(config.withdrawTo).balance;
-    }
-
-    function test_success() external {
         vm.warp(startDate);
 
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
@@ -843,7 +844,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         vm.expectRevert("Pausable: paused");
 
         vm.prank(GLOBAL_ADMIN);
-        presale.purchase{value: _alicePurchaseAmountETH}(ALICE);
+        presale.purchase{value: 1 ether}(ALICE);
     }
 
     function test_rejects_whenRaiseNotStarted() external {
@@ -852,7 +853,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         vm.expectRevert("RAISE_NOT_STARTED");
 
         vm.prank(GLOBAL_ADMIN);
-        presale.purchase{value: _alicePurchaseAmountETH}(ALICE);
+        presale.purchase{value: 1 ether}(ALICE);
     }
 
     function test_rejects_whenRaiseEnded() external {
@@ -861,7 +862,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         vm.expectRevert("RAISE_ENDED");
 
         vm.prank(GLOBAL_ADMIN);
-        presale.purchase{value: _alicePurchaseAmountETH}(ALICE);
+        presale.purchase{value: 1 ether}(ALICE);
     }
 
     function test_rejects_whenMinDepositAmount() external {
@@ -874,6 +875,9 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
     }
 
     function test_emits_Purchase() external assertEvent {
+        _alicePurchaseAmountUSD = 3_333 ether;
+        uint256 _alicePurchaseAmountETH = _alicePurchaseAmountUSD / (presale.ethPrice() / PRECISION);
+
         vm.warp(startDate);
 
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
@@ -926,29 +930,29 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         address indexed sender
     );
 
-    uint256 _totalCostUSD;
-    uint256 _totalAllocation;
+    uint256 private _totalCostUSD;
+    uint256 private _totalAllocation;
 
-    uint256 _alicePurchaseAmountUSD;
-    uint256 _alicePurchaseAmountAsset;
-    uint256 _aliceTotalCostUSD;
-    uint256 _aliceAllocationRemaining;
+    uint256 private _alicePurchaseAmountUSD;
+//    uint256 private _alicePurchaseAmountAsset;
+    uint256 private _aliceTotalCostUSD;
+    uint256 private _aliceAllocationRemaining;
 
-    uint256 _bobPurchaseAmountUSD;
-    uint256 _bobPurchaseAmountAsset;
-    uint256 _bobTotalCostUSD;
-    uint256 _bobAllocationRemaining;
+    uint256 private _bobPurchaseAmountUSD;
+//    uint256 private _bobPurchaseAmountAsset;
+    uint256 private _bobTotalCostUSD;
+    uint256 private _bobAllocationRemaining;
 
-    uint256 _aliceUsdcBalance;
-    uint256 _bobUsdcBalance;
-    uint256 _withdrawToUsdcBalance;
+    uint256 private _aliceUsdcBalance;
+    uint256 private _bobUsdcBalance;
+    uint256 private _withdrawToUsdcBalance;
 
     function setUp() public {
-        _alicePurchaseAmountUSD = 2_345 ether;
-        _alicePurchaseAmountAsset = 2_345 * 1e6;
-
-        _bobPurchaseAmountUSD = 5_678 ether;
-        _bobPurchaseAmountAsset = 5_678 * 1e6;
+//        _alicePurchaseAmountUSD = 2_345 ether;
+//        _alicePurchaseAmountAsset = 2_345 * 1e6;
+//
+//        _bobPurchaseAmountUSD = 5_678 ether;
+//        _bobPurchaseAmountAsset = 5_678 * 1e6;
 
         _aliceAllocationRemaining = config.maxUserAllocation;
         _bobAllocationRemaining = config.maxUserAllocation;

@@ -240,9 +240,12 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             );
         }
 
-        require(_totalAllocation > 0, "MIN_ALLOCATION");
+        uint256 _finalRoundIndex = _rounds.length - 1;
+        bool isSoldOut = $roundAllocated[_finalRoundIndex] == $rounds[_finalRoundIndex].tokensAllocated;
 
-        $currentRoundIndex = i < _rounds.length ? i : _rounds.length - 1;
+        require(_totalAllocation > 0 || isSoldOut, "MIN_ALLOCATION");
+
+        $currentRoundIndex = i < _rounds.length ? i : _finalRoundIndex;
 
         $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
 
