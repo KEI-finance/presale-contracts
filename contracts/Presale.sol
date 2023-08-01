@@ -118,9 +118,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _expectedCurrentRoundIndex;
 
         for (uint256 i; i < newRounds.length; ++i) {
-            $rounds.push(newRounds[i]);
+            RoundConfig memory _newRound = newRounds[i];
 
-            uint256 _roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice / PRECISION;
+            $rounds.push(_newRound);
+
+            uint256 _roundCostUSD = _newRound.tokensAllocated * _newRound.tokenPrice / PRECISION;
             _totalCostUSD += _roundCostUSD;
             if (_totalRaisedUSD > _totalCostUSD) {
                 _expectedCurrentRoundIndex++;
@@ -189,7 +191,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         );
 
         uint256 _totalAllocation;
-        uint256 _totalPurchaseAmountAsset;
+        uint256 _totalCostAsset;
 
         uint256 _remainingUSD = purchaseConfig.amountUSD;
         uint256 _userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
@@ -224,7 +226,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             _totalAllocation += _roundAllocation;
 
             uint256 _roundPurchaseAmountAsset = _tokensCostUSD * purchaseConfig.amountAsset / purchaseConfig.amountUSD;
-            _totalPurchaseAmountAsset += _roundPurchaseAmountAsset;
+            _totalCostAsset += _roundPurchaseAmountAsset;
 
             $roundAllocated[i] += _roundAllocation;
             $totalRaisedUSD += _tokensCostUSD;
@@ -249,15 +251,15 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
 
-        uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalPurchaseAmountAsset;
+        uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalCostAsset;
 
         if (_refundAmountAsset > 0) {
             _send(purchaseConfig.asset, _refundAmountAsset, payable(_msgSender()));
             emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, _msgSender());
         }
 
-        if (_totalPurchaseAmountAsset > 0) {
-            _send(purchaseConfig.asset, _totalPurchaseAmountAsset, _config.withdrawTo);
+        if (_totalCostAsset > 0) {
+            _send(purchaseConfig.asset, _totalCostAsset, _config.withdrawTo);
         }
 
         return _totalAllocation;
