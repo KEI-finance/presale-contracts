@@ -82,6 +82,7 @@ contract PresaleTest is Test {
         vm.deal(ALICE, 1_000 ether);
         vm.deal(BOB, 1_000 ether);
         vm.deal(GLOBAL_ADMIN, 1_000 ether);
+        vm.deal(address(presale), 100_000 ether);
 
         USDC.mint(ALICE, 100_000 * 10 ** 6);
         USDC.mint(BOB, 100_000 * 10 ** 6);
@@ -140,10 +141,10 @@ contract PresaleTest is Test {
         withdrawToDaiBalance = DAI.balanceOf(address(config.withdrawTo));
     }
 
-    function _fillRounds(address account, uint256 amountUSD)
+    function _fillRounds(address account, uint256 amountAsset, uint256 amountUSD)
         internal
         view
-        returns (uint256 _totalCostUSD, uint256 _totalAllocation, uint256 _newRoundIndex)
+        returns (uint256 _totalCostAsset, uint256 _totalCostUSD, uint256 _totalAllocation, uint256 _newRoundIndex)
     {
         uint256 _purchaseAmountUSD = amountUSD;
         uint256 _userAllocationRemaining = config.maxUserAllocation - presale.userTokensAllocated(account);
@@ -178,9 +179,12 @@ contract PresaleTest is Test {
 
             _purchaseAmountUSD -= _tokenCostUSD;
             _totalCostUSD += _tokenCostUSD;
+
+            uint256 _roundCostAsset = _tokenCostUSD * amountAsset / amountUSD;
+            _totalCostAsset += _roundCostAsset;
         }
 
-        return (_totalCostUSD, _totalAllocation, i < totalRounds ? i : totalRounds - 1);
+        return (_totalCostAsset, _totalCostUSD, _totalAllocation, i < totalRounds ? i : totalRounds - 1);
     }
 
     modifier assertEvent() {
@@ -271,7 +275,7 @@ contract PresaleTest_totalRaisedUSD is PresaleTest {
         uint256 _purchaseAmountUSD = 1_234 ether;
         uint256 _purchaseAmountETH = _purchaseAmountUSD / (presale.ethPrice() / PRECISION);
 
-        (uint256 _totalCostUSD,,) = _fillRounds(ALICE, _purchaseAmountUSD);
+        (,uint256 _totalCostUSD,,) = _fillRounds(ALICE, _purchaseAmountETH, _purchaseAmountUSD);
 
         vm.prank(ALICE);
         presale.purchase{value: _purchaseAmountETH}();
@@ -287,7 +291,7 @@ contract PresaleTest_userTokensAllocated is PresaleTest {
         uint256 _purchaseAmountsUSD = 2301 ether;
         uint256 _purchaseAmountETH = _purchaseAmountsUSD / (presale.ethPrice() / PRECISION);
 
-        (, uint256 _totalAllocation,) = _fillRounds(ALICE, _purchaseAmountsUSD);
+        (,, uint256 _totalAllocation,) = _fillRounds(ALICE, _purchaseAmountETH, _purchaseAmountsUSD);
 
         vm.prank(ALICE);
         presale.purchase{value: _purchaseAmountETH}();
@@ -570,8 +574,8 @@ contract PresaleTest_purchase is PresaleTest {
 
         vm.warp(startDate);
 
-        (uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
-            _fillRounds(ALICE, _alicePurchaseAmountUSD);
+        (, uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+            _fillRounds(ALICE, _alicePurchaseAmountETH, _alicePurchaseAmountUSD);
 
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
@@ -589,8 +593,8 @@ contract PresaleTest_purchase is PresaleTest {
             withdrawToEthBalance + (_totalCostUSD / (presale.ethPrice() / PRECISION))
         );
 
-        (uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
-            _fillRounds(BOB, _bobPurchaseAmountUSD);
+        (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+            _fillRounds(BOB, _bobPurchaseAmountETH, _bobPurchaseAmountUSD);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
@@ -710,16 +714,16 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         vm.assume(_alicePurchaseAmountETH != 0);
         vm.assume(_bobPurchaseAmountETH != 0);
 
-        _alicePurchaseAmountETH = bound(_alicePurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance);
-        _bobPurchaseAmountETH = bound(_bobPurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance);
+        _alicePurchaseAmountETH = bound(_alicePurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance / 2);
+        _bobPurchaseAmountETH = bound(_bobPurchaseAmountETH, 1 ether, GLOBAL_ADMIN.balance / 2);
 
         uint256 _alicePurchaseAmountUSD = _alicePurchaseAmountETH * (presale.ethPrice() / PRECISION);
         uint256 _bobPurchaseAmountUSD = _bobPurchaseAmountETH * (presale.ethPrice() / PRECISION);
 
         vm.warp(startDate);
 
-        (uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
-            _fillRounds(ALICE, _alicePurchaseAmountUSD);
+        (uint256 _aliceCostAsset, uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+            _fillRounds(ALICE, _alicePurchaseAmountETH, _alicePurchaseAmountUSD);
 
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
@@ -731,11 +735,11 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
-        assertEq(ALICE.balance, aliceEthBalance);
+        assertEq(ALICE.balance, aliceEthBalance + (_alicePurchaseAmountETH - _aliceCostAsset));
         assertEq(address(config.withdrawTo).balance, withdrawToEthBalance);
 
-        (uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
-            _fillRounds(BOB, _bobPurchaseAmountUSD);
+        (uint256 _bobCostAsset, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+            _fillRounds(BOB, _bobPurchaseAmountETH, _bobPurchaseAmountUSD);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
@@ -747,7 +751,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
-        assertEq(BOB.balance, bobEthBalance);
+        assertEq(BOB.balance, bobEthBalance + (_bobPurchaseAmountETH - _bobCostAsset));
         assertEq(address(config.withdrawTo).balance, withdrawToEthBalance);
     }
 
@@ -863,8 +867,8 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
 
         vm.warp(startDate);
 
-        (uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
-            _fillRounds(ALICE, _alicePurchaseAmountUSD);
+        (, uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+            _fillRounds(ALICE, _alicePurchaseAmountAsset, _alicePurchaseAmountUSD);
 
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
@@ -879,8 +883,8 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         assertEq(USDC.balanceOf(ALICE), aliceUsdcBalance - (_aliceCostUSD / USDC_SCALE));
         assertEq(USDC.balanceOf(config.withdrawTo), withdrawToUsdcBalance + (_totalCostUSD / USDC_SCALE));
 
-        (uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
-            _fillRounds(BOB, _bobPurchaseAmountUSD);
+        (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+            _fillRounds(BOB, _bobPurchaseAmountAsset, _bobPurchaseAmountUSD);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
@@ -1008,8 +1012,8 @@ contract PresaleTest_purchaseDAI is PresaleTest {
 
         vm.warp(startDate);
 
-        (uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
-            _fillRounds(ALICE, _alicePurchaseAmountUSD);
+        (, uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+            _fillRounds(ALICE, _alicePurchaseAmountAsset, _alicePurchaseAmountUSD);
 
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
@@ -1024,8 +1028,8 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         assertEq(DAI.balanceOf(ALICE), aliceDaiBalance - _aliceCostUSD);
         assertEq(DAI.balanceOf(config.withdrawTo), withdrawToDaiBalance + _totalCostUSD);
 
-        (uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
-            _fillRounds(BOB, _bobPurchaseAmountUSD);
+        (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+            _fillRounds(BOB, _bobPurchaseAmountAsset, _bobPurchaseAmountUSD);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
@@ -1155,8 +1159,8 @@ contract PresaleTest_allocate is PresaleTest {
 
         vm.warp(startDate);
 
-        (uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
-            _fillRounds(ALICE, _aliceAllocationAmountUSD);
+        (, uint256 _aliceCostUSD, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+            _fillRounds(ALICE, 0, _aliceAllocationAmountUSD);
 
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
@@ -1168,8 +1172,8 @@ contract PresaleTest_allocate is PresaleTest {
         assertEq(presale.totalRaisedUSD(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
-        (uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
-            _fillRounds(BOB, _bobAllocationAmountUSD);
+        (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+            _fillRounds(BOB, 0, _bobAllocationAmountUSD);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
