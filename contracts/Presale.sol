@@ -78,9 +78,23 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _usdAmount = (amount * ethPrice()) / PRECISION;
     }
 
+    function ethToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256 _tokenAmount) {
+        RoundConfig memory _round = $rounds[roundIndex];
+        uint256 _usdAmount = amount * ethPrice() / PRECISION;
+        _tokenAmount = _usdAmount * _round.tokenPrice / (USD_PRECISION * PRECISION);
+    }
+
     function usdToTokens(uint256 roundIndex, uint256 amount) public view returns (uint256) {
         RoundConfig memory _round = $rounds[roundIndex];
         return amount * _round.tokenPrice / USD_PRECISION;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
@@ -95,7 +109,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         emit RoundsUpdated($rounds, newRounds, _msgSender());
 
-        for (uint256 i; i < $rounds.length; ++i) {
+        uint256 _totalRounds = $rounds.length;
+        while (_totalRounds > 0) {
+            _totalRounds--;
             $rounds.pop();
         }
 
@@ -104,9 +120,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 _expectedCurrentRoundIndex;
 
         for (uint256 i; i < newRounds.length; ++i) {
-            $rounds.push(newRounds[i]);
+            RoundConfig memory _newRound = newRounds[i];
 
-            uint256 _roundCostUSD = newRounds[i].tokensAllocated * newRounds[i].tokenPrice / PRECISION;
+            $rounds.push(_newRound);
+
+            uint256 _roundCostUSD = _newRound.tokensAllocated * _newRound.tokenPrice / PRECISION;
             _totalCostUSD += _roundCostUSD;
             if (_totalRaisedUSD > _totalCostUSD) {
                 _expectedCurrentRoundIndex++;
@@ -166,7 +184,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
     function _sync(PurchaseConfig memory purchaseConfig) private returns (uint256) {
         PresaleConfig memory _config = $config;
-        RoundConfig[] memory _rounds = $rounds;
 
         require(block.timestamp >= _config.startDate, "RAISE_NOT_STARTED");
         require(block.timestamp <= _config.endDate, "RAISE_ENDED");
@@ -175,14 +192,15 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         );
 
         uint256 _totalAllocation;
-        uint256 _totalPurchaseAmountAsset;
+        uint256 _totalCostAsset;
 
+        uint256 _totalRounds = $rounds.length;
         uint256 _remainingUSD = purchaseConfig.amountUSD;
         uint256 _userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
 
         uint256 i = $currentRoundIndex;
-        for (i; i < _rounds.length && _remainingUSD > 0 && _userAllocationRemaining > 0; ++i) {
-            RoundConfig memory _round = _rounds[i];
+        for (i; i < _totalRounds && _remainingUSD > 0 && _userAllocationRemaining > 0; ++i) {
+            RoundConfig memory _round = $rounds[i];
             uint256 _roundAllocated = $roundAllocated[i];
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
@@ -198,7 +216,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 _roundAllocation = _userAllocationRemaining;
             }
 
-            require(_roundAllocation > 0, "MIN_ROUND_ALLOCATION");
+            if (_roundAllocation == 0) {
+                --i;
+                break;
+            }
 
             uint256 _tokensCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
             _remainingUSD -= _tokensCostUSD;
@@ -207,14 +228,14 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             _totalAllocation += _roundAllocation;
 
             uint256 _roundPurchaseAmountAsset = _tokensCostUSD * purchaseConfig.amountAsset / purchaseConfig.amountUSD;
-            _totalPurchaseAmountAsset += _roundPurchaseAmountAsset;
+            _totalCostAsset += _roundPurchaseAmountAsset;
 
             $roundAllocated[i] += _roundAllocation;
             $totalRaisedUSD += _tokensCostUSD;
 
-            emit Receipt(
-                purchaseConfig.asset,
+            emit Purchase(
                 i,
+                purchaseConfig.asset,
                 _round.tokenPrice,
                 _roundPurchaseAmountAsset,
                 _tokensCostUSD,
@@ -223,21 +244,24 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             );
         }
 
-        require(_totalAllocation > 0, "MIN_ALLOCATION");
+        uint256 _finalRoundIndex = _totalRounds - 1;
+        bool isSoldOut = $roundAllocated[_finalRoundIndex] == $rounds[_finalRoundIndex].tokensAllocated;
 
-        $currentRoundIndex = i;
+        require(_totalAllocation > 0 || isSoldOut, "MIN_ALLOCATION");
+
+        $currentRoundIndex = i < _totalRounds ? i : _finalRoundIndex;
 
         $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _userAllocationRemaining;
 
-        uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalPurchaseAmountAsset;
+        uint256 _refundAmountAsset = purchaseConfig.amountAsset - _totalCostAsset;
 
         if (_refundAmountAsset > 0) {
             _send(purchaseConfig.asset, _refundAmountAsset, payable(purchaseConfig.account));
             emit Refund(purchaseConfig.asset, _refundAmountAsset, _remainingUSD, purchaseConfig.account);
         }
 
-        if (_totalPurchaseAmountAsset > 0) {
-            _send(purchaseConfig.asset, _totalPurchaseAmountAsset, _config.withdrawTo);
+        if (_totalCostAsset > 0) {
+            _send(purchaseConfig.asset, _totalCostAsset, _config.withdrawTo);
         }
 
         return _totalAllocation;
