@@ -1,5 +1,5 @@
 {
-  "name": "@kei/presale-contract",
+  "name": "@kei.fi/presale-contract",
   "version": "1.0.0-beta.1",
   "main": "index.js",
   "scripts": {
