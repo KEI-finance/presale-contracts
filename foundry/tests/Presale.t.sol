@@ -110,9 +110,7 @@ contract PresaleTest is Test {
         }
 
         vm.startPrank(GLOBAL_ADMIN);
-        presale = new Presale(address(ORACLE), address(USDC), address(DAI), config);
-        presale.setConfig(config);
-        presale.setRounds(rounds);
+        presale = new Presale(address(ORACLE), address(USDC), address(DAI), config, rounds);
         vm.stopPrank();
 
         vm.startPrank(ALICE);
@@ -146,45 +144,44 @@ contract PresaleTest is Test {
         view
         returns (uint256 _totalCostAsset, uint256 _totalCostUSD, uint256 _totalAllocation, uint256 _newRoundIndex)
     {
-        uint256 _purchaseAmountUSD = amountUSD;
+        uint256 _remainingUSD = amountUSD;
         uint256 _userAllocationRemaining = config.maxUserAllocation - presale.userTokensAllocated(account);
 
-        uint256 i = presale.currentRoundIndex();
-        for (i; i < totalRounds && _purchaseAmountUSD > 0 && _userAllocationRemaining > 0; ++i) {
-            IPresale.RoundConfig memory _round = rounds[i];
-            uint256 _roundAllocated = presale.roundAllocated(i);
+        _newRoundIndex = presale.currentRoundIndex();
+
+        while (_newRoundIndex < rounds.length && _remainingUSD > 0 && _userAllocationRemaining > 0) {
+            IPresale.RoundConfig memory _round = presale.round(_newRoundIndex);
+            uint256 _roundTotalAllocated = presale.roundTokensAllocated(_newRoundIndex);
             uint256 _roundAllocationRemaining =
-                _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
+                _roundTotalAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundTotalAllocated : 0;
 
-            if (_roundAllocationRemaining == 0) continue;
+            uint256 _userAllocation = presale.usdToTokens(_remainingUSD, _round.tokenPrice);
 
-            uint256 _roundAllocation = _purchaseAmountUSD * PRECISION / _round.tokenPrice;
-
-            if (_roundAllocation > _roundAllocationRemaining) {
-                _roundAllocation = _roundAllocationRemaining;
+            if (_userAllocation > _roundAllocationRemaining) {
+                _userAllocation = _roundAllocationRemaining;
             }
-            if (_roundAllocation > _userAllocationRemaining) {
-                _roundAllocation = _userAllocationRemaining;
+            if (_userAllocation > _userAllocationRemaining) {
+                _userAllocation = _userAllocationRemaining;
             }
 
-            if (_roundAllocation == 0) {
-                --i;
+            if (_userAllocation > 0) {
+                uint256 _tokensCostUSD = presale.tokensToUSD(_userAllocation, _round.tokenPrice);
+                uint256 _roundPurchaseAmountAsset = (_tokensCostUSD * amountAsset) / amountUSD;
+
+                _userAllocationRemaining -= _userAllocation;
+                _totalAllocation += _userAllocation;
+                _totalCostAsset += _roundPurchaseAmountAsset;
+                _totalCostUSD += _tokensCostUSD;
+                _remainingUSD -= _tokensCostUSD;
+            }
+
+            // if we have used everything then lets increment current index. and only increment if we are not on the last round.
+            if (_userAllocation == _roundAllocationRemaining && _newRoundIndex < totalRounds - 1) {
+                _newRoundIndex++;
+            } else {
                 break;
             }
-
-            _totalAllocation += _roundAllocation;
-            _userAllocationRemaining -= _roundAllocation;
-
-            uint256 _tokenCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
-
-            _purchaseAmountUSD -= _tokenCostUSD;
-            _totalCostUSD += _tokenCostUSD;
-
-            uint256 _roundCostAsset = _tokenCostUSD * amountAsset / amountUSD;
-            _totalCostAsset += _roundCostAsset;
         }
-
-        return (_totalCostAsset, _totalCostUSD, _totalAllocation, i < totalRounds ? i : totalRounds - 1);
     }
 
     modifier assertEvent() {
@@ -264,7 +261,7 @@ contract PresaleTest_roundAllocated is PresaleTest {
     }
 
     function test_success() external {
-        assertEq(presale.roundAllocated(0), tokensAllocated[0]);
+        assertEq(presale.roundTokensAllocated(0), tokensAllocated[0]);
     }
 }
 
@@ -316,11 +313,13 @@ contract PresaleTest_ethToUsd is PresaleTest {
 
 contract PresaleTest_ethToTokens is PresaleTest {
     function test_success() external {
-        IPresale.RoundConfig memory _round = presale.round(0);
-        uint256 _ethAmount = 2 * USD_PRECISION;
-        uint256 _usdAmount = _ethAmount * presale.ethPrice() / PRECISION;
-        uint256 _tokenAmount = _usdAmount * _round.tokenPrice / (USD_PRECISION * PRECISION);
-        assertEq(presale.ethToTokens(0, _ethAmount), _tokenAmount);
+        uint256 _ethAmount = 1 ether;
+        uint256 _usdAmount = presale.ethToUsd(_ethAmount);
+        uint256 _tokenAmount = 5 ether;
+
+        uint256 _price = (_usdAmount * PRECISION) / _tokenAmount;
+
+        assertEq(presale.ethToTokens(_ethAmount, _price), _tokenAmount);
     }
 }
 
@@ -328,8 +327,8 @@ contract PresaleTest_usdToTokens is PresaleTest {
     function test_success() external {
         IPresale.RoundConfig memory _round = presale.round(0);
         uint256 _usdAmount = 100 * USD_PRECISION;
-        uint256 _tokenAmount = _usdAmount * _round.tokenPrice / USD_PRECISION;
-        assertEq(presale.usdToTokens(0, _usdAmount), _tokenAmount);
+        uint256 _tokenAmount = _usdAmount * PRECISION / _round.tokenPrice;
+        assertEq(presale.usdToTokens(_usdAmount, _round.tokenPrice), _tokenAmount);
     }
 }
 
@@ -480,7 +479,13 @@ contract PresaleTest_setConfig is PresaleTest {
 }
 
 contract PresaleTest_setRounds is PresaleTest {
-    event RoundsUpdated(IPresale.RoundConfig[] prevRounds, IPresale.RoundConfig[] newRounds, address indexed sender);
+    event RoundsUpdated(
+        IPresale.RoundConfig[] prevRounds,
+        IPresale.RoundConfig[] newRounds,
+        uint256 prevCurrentRoundIndex,
+        uint256 newCurrentRoundIndex,
+        address indexed sender
+    );
 
     IPresale.RoundConfig[] private _newRounds;
     uint256 private _totalRounds;
@@ -542,8 +547,8 @@ contract PresaleTest_setRounds is PresaleTest {
     }
 
     function test_emits_RoundsUpdated() external assertEvent {
+        emit RoundsUpdated(rounds, _newRounds, 0, 1, GLOBAL_ADMIN);
         vm.prank(GLOBAL_ADMIN);
-        emit RoundsUpdated(rounds, _newRounds, GLOBAL_ADMIN);
         presale.setRounds(_newRounds);
     }
 }
@@ -659,7 +664,7 @@ contract PresaleTest_purchase is PresaleTest {
         uint256 _remainingUSD = _alicePurchaseAmountUSD;
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
-            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocated = presale.roundTokensAllocated(i);
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
@@ -675,8 +680,8 @@ contract PresaleTest_purchase is PresaleTest {
             _totalCostUSD += _tokenCostUSD;
 
             emit Purchase(
-                i,
                 address(0),
+                i,
                 _round.tokenPrice,
                 _tokenCostUSD * _alicePurchaseAmountETH / _alicePurchaseAmountUSD,
                 _tokenCostUSD,
@@ -801,7 +806,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         uint256 _remainingUSD = _alicePurchaseAmountUSD;
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
-            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocated = presale.roundTokensAllocated(i);
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
@@ -885,6 +890,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
 
         (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
             _fillRounds(BOB, _bobPurchaseAmountAsset, _bobPurchaseAmountUSD);
+        console.log('bob', _bobCostUSD, _bobAllocation, _bobNewRoundIndex);
 
         _totalCostUSD += _bobCostUSD;
         _totalAllocation += _bobAllocation;
@@ -949,7 +955,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         uint256 _remainingUSD = _alicePurchaseAmountUSD;
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
-            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocated = presale.roundTokensAllocated(i);
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
@@ -1091,7 +1097,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         uint256 _remainingUSD = _alicePurchaseAmountUSD;
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
-            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocated = presale.roundTokensAllocated(i);
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
@@ -1228,7 +1234,7 @@ contract PresaleTest_allocate is PresaleTest {
         uint256 _remainingUSD = _alicePurchaseAmountUSD;
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds; ++i) {
             IPresale.RoundConfig memory _round = presale.round(i);
-            uint256 _roundAllocated = presale.roundAllocated(i);
+            uint256 _roundAllocated = presale.roundTokensAllocated(i);
             uint256 _roundAllocationRemaining =
                 _roundAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundAllocated : 0;
 
