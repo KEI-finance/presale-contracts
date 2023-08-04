@@ -1,13 +1,15 @@
-# presale-contract
+# KEI Presale Contract
 
-Contract that accepts ETH and stores cumulative user deposit balances.
+Users can purchase the KEI token with ETH, USDC or DAI.
 
-Users can refund (take back) their contribution at any time.
+Contract allows for off-chain purchases via fiat to be registered in contract state.
 
-Only owner of contract can withdraw all deposited ETH.
+ETH price is taken from the Chainlink Oracle on Arbitrum One:
 
-
-## chainlink oracle
-
-ETH / USD - on Arbitrum One (returns price in 8 deimcals):
 https://data.chain.link/arbitrum/mainnet/crypto-usd/eth-usd
+
+## Foundry
+
+```
+forge test -vvv
+```
