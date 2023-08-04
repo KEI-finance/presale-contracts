@@ -29,12 +29,19 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     mapping(uint256 => uint256) private $roundAllocated;
     mapping(address => uint256) private $userTokensAllocated;
 
-    constructor(address oracle, address usdc, address dai, PresaleConfig memory config_) {
+    constructor(
+        address oracle,
+        address usdc,
+        address dai,
+        PresaleConfig memory newConfig,
+        RoundConfig[] memory newRounds
+    ) {
         ORACLE = AggregatorV3Interface(oracle);
         USDC = usdc;
         DAI = dai;
 
-        $config = config_;
+        _setConfig(newConfig);
+        _setRounds(newRounds);
     }
 
     function currentRoundIndex() external view returns (uint256) {
@@ -98,40 +105,11 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
-        require(newConfig.startDate < newConfig.endDate, "INVALID_DATES");
-        require(newConfig.withdrawTo != address(0), "INVALID_WITHDRAW_TO");
-
-        emit ConfigUpdated($config, newConfig, _msgSender());
-
-        $config = newConfig;
+        _setConfig(newConfig);
     }
 
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
-        emit RoundsUpdated($rounds, newRounds, _msgSender());
-
-        uint256 _totalRounds = $rounds.length;
-        while (_totalRounds > 0) {
-            _totalRounds--;
-            $rounds.pop();
-        }
-
-        uint256 _totalCostUSD;
-        uint256 _totalRaisedUSD = $totalRaisedUSD;
-        uint256 _expectedCurrentRoundIndex;
-
-        for (uint256 i; i < newRounds.length; ++i) {
-            RoundConfig memory _newRound = newRounds[i];
-
-            $rounds.push(_newRound);
-
-            uint256 _roundCostUSD = _newRound.tokensAllocated * _newRound.tokenPrice / PRECISION;
-            _totalCostUSD += _roundCostUSD;
-            if (_totalRaisedUSD > _totalCostUSD) {
-                _expectedCurrentRoundIndex++;
-            }
-        }
-
-        $currentRoundIndex = _expectedCurrentRoundIndex;
+        _setRounds(newRounds);
     }
 
     function purchase() public payable override whenNotPaused returns (uint256 allocation) {
@@ -273,5 +251,42 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         } else {
             IERC20(asset).transfer(account, amountAsset);
         }
+    }
+
+    function _setRounds(RoundConfig[] memory newRounds) private {
+        emit RoundsUpdated($rounds, newRounds, _msgSender());
+
+        uint256 _totalRounds = $rounds.length;
+        while (_totalRounds > 0) {
+            _totalRounds--;
+            $rounds.pop();
+        }
+
+        uint256 _totalCostUSD;
+        uint256 _totalRaisedUSD = $totalRaisedUSD;
+        uint256 _expectedCurrentRoundIndex;
+
+        for (uint256 i; i < newRounds.length; ++i) {
+            RoundConfig memory _newRound = newRounds[i];
+
+            $rounds.push(_newRound);
+
+            uint256 _roundCostUSD = _newRound.tokensAllocated * _newRound.tokenPrice / PRECISION;
+            _totalCostUSD += _roundCostUSD;
+            if (_totalRaisedUSD > _totalCostUSD) {
+                _expectedCurrentRoundIndex++;
+            }
+        }
+
+        $currentRoundIndex = _expectedCurrentRoundIndex;
+    }
+
+    function _setConfig(PresaleConfig memory newConfig) private {
+        require(newConfig.startDate < newConfig.endDate, "INVALID_DATES");
+        require(newConfig.withdrawTo != address(0), "INVALID_WITHDRAW_TO");
+
+        emit ConfigUpdated($config, newConfig, _msgSender());
+
+        $config = newConfig;
     }
 }

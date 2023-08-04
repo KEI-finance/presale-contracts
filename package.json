@@ -1,7 +1,11 @@
 {
+  "name": "@kei/presale-contract",
+  "version": "1.0.0-beta.1",
+  "main": "index.js",
   "scripts": {
     "postinstall": "TS_NODE_TRANSPILE_ONLY=1 hardhat compile",
-    "build": "hardhat compile"
+    "build": "hardhat compile",
+    "package": "hardhat package"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -16,10 +20,12 @@
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.3.1",
     "chai": "^4.2.0",
+    "create2-deployer": "^1.0.3",
     "dotenv": "^16.3.1",
-    "ethers": "^6.4.0",
+    "ethers": "^5.7.2",
     "hardhat": "^2.16.0",
     "hardhat-gas-reporter": "^1.0.8",
+    "hardhat-package": "^1.0.0-beta.16",
     "solidity-coverage": "^0.8.1",
     "ts-node": "^10.9.1",
     "typechain": "^8.2.0",
@@ -27,6 +33,7 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
-    "@openzeppelin/contracts": "^4.9.2"
+    "@openzeppelin/contracts": "^4.9.2",
+    "@openzeppelin/upgrades-core": "^1.27.3"
   }
 }
