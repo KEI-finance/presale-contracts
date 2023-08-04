@@ -33,11 +33,9 @@ export const rounds: IPresale.RoundConfigStruct[] = [
 ];
 
 function makePrice(price: number) {
-  const usdAmount = BigNumber.from(Math.round(price * 1e3)).mul(
+  return BigNumber.from(Math.round(price * 1e3)).mul(
     BigNumber.from(10).pow(15)
   );
-  const tokenAmount = makeTokens(1); // ONE TOKEN
-  return usdAmount.div(tokenAmount);
 }
 
 function makeTokens(amount: number) {

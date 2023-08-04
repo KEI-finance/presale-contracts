@@ -16,13 +16,17 @@ async function main() {
       minDepositAmount: 0,
       maxUserAllocation: BigNumber.from(10).pow(14),
       endDate: Math.round(new Date("11/01/2023").getTime() / 1000),
-      startDate: Math.round(Date.now() / 1000),
+      startDate: Math.round(new Date("08/01/2023").getTime() / 1000),
       withdrawTo: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3",
     },
     rounds
   );
 
   console.log(`Deployed to ${presale.address}`);
+
+  await presale.deployed();
+
+  console.log("completed");
 }
 
 main().catch((error) => {
