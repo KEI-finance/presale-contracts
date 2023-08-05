@@ -21,7 +21,7 @@ contract PresaleTest is Test {
     address internal ALICE;
     address internal BOB;
 
-    address payable internal withdrawTo;
+    address payable internal WITHDRAW_TO;
 
     uint48 internal startDate;
     uint48 internal endDate;
@@ -66,7 +66,8 @@ contract PresaleTest is Test {
         BOB = makeAddr("BOB");
         vm.label(BOB, "BOB");
 
-        withdrawTo = GLOBAL_ADMIN;
+        WITHDRAW_TO = payable(makeAddr("WITHDRAW_TO"));
+        vm.label(WITHDRAW_TO, "WITHDRAW_TO");
 
         startDate = 1 days;
         endDate = 10 days;
@@ -82,6 +83,7 @@ contract PresaleTest is Test {
         vm.deal(ALICE, 1_000 ether);
         vm.deal(BOB, 1_000 ether);
         vm.deal(GLOBAL_ADMIN, 1_000 ether);
+        vm.deal(WITHDRAW_TO, 1_000 ether);
         vm.deal(address(presale), 100_000 ether);
 
         USDC.mint(ALICE, 100_000 * 10 ** 6);
@@ -95,7 +97,7 @@ contract PresaleTest is Test {
             maxUserAllocation: uint128(70_000 * PRECISION),
             startDate: startDate,
             endDate: endDate,
-            withdrawTo: withdrawTo
+            withdrawTo: WITHDRAW_TO
         });
 
         tokenPrices = [0.07 ether, 0.07 ether, 0.08 ether, 0.08 ether, 0.09 ether, 0.09 ether, 0.1 ether];
@@ -272,7 +274,7 @@ contract PresaleTest_totalRaisedUSD is PresaleTest {
         uint256 _purchaseAmountUSD = 1_234 ether;
         uint256 _purchaseAmountETH = _purchaseAmountUSD / (presale.ethPrice() / PRECISION);
 
-        (,uint256 _totalCostUSD,,) = _fillRounds(ALICE, _purchaseAmountETH, _purchaseAmountUSD);
+        (, uint256 _totalCostUSD,,) = _fillRounds(ALICE, _purchaseAmountETH, _purchaseAmountUSD);
 
         vm.prank(ALICE);
         presale.purchase{value: _purchaseAmountETH}();
@@ -733,6 +735,8 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         _totalCostUSD += _aliceCostUSD;
         _totalAllocation += _aliceAllocation;
 
+        uint256 _globalAdminEthBalance = GLOBAL_ADMIN.balance;
+
         vm.prank(GLOBAL_ADMIN);
         presale.purchase{value: _alicePurchaseAmountETH}(ALICE);
 
@@ -741,7 +745,8 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         assertEq(ALICE.balance, aliceEthBalance + (_alicePurchaseAmountETH - _aliceCostAsset));
-        assertEq(address(config.withdrawTo).balance, withdrawToEthBalance);
+        assertEq(address(config.withdrawTo).balance, withdrawToEthBalance + _aliceCostAsset);
+        assertEq(GLOBAL_ADMIN.balance, _globalAdminEthBalance - _alicePurchaseAmountETH); // refund goes to purchaseConfig.account
 
         (uint256 _bobCostAsset, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
             _fillRounds(BOB, _bobPurchaseAmountETH, _bobPurchaseAmountUSD);
@@ -757,7 +762,8 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
         assertEq(BOB.balance, bobEthBalance + (_bobPurchaseAmountETH - _bobCostAsset));
-        assertEq(address(config.withdrawTo).balance, withdrawToEthBalance);
+        assertEq(address(config.withdrawTo).balance, withdrawToEthBalance + _aliceCostAsset + _bobCostAsset);
+        assertEq(GLOBAL_ADMIN.balance, _globalAdminEthBalance - _alicePurchaseAmountETH - _bobPurchaseAmountETH); // refund goes to purchaseConfig.account
     }
 
     function test_rejects_whenPaused() external {
