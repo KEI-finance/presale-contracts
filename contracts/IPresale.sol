@@ -64,11 +64,6 @@ interface IPresale {
         uint256 usdAllocated;
     }
 
-    struct UserLiquidity {
-        uint128 tokensAllocated;
-        uint128 usdAllocated;
-    }
-
     function currentRoundIndex() external view returns (uint256);
 
     function config() external view returns (PresaleConfig memory);
