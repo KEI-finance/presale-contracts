@@ -845,8 +845,8 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
 
 contract PresaleTest_purchaseUSDC is PresaleTest {
     event Purchase(
-        uint256 indexed roundIndex,
         address indexed asset,
+        uint256 indexed roundIndex,
         uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
@@ -946,7 +946,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         presale.purchaseUSDC(0.1 * 1e6);
     }
 
-    function test_emits_Receipt() external {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountAsset = 1_345 * 1e6;
         uint256 _alicePurchaseAmountUSD = _alicePurchaseAmountAsset * USDC_SCALE;
 
@@ -971,8 +971,8 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
             _totalCostUSD += _tokenCostUSD;
 
             emit Purchase(
-                i,
                 address(USDC),
+                i,
                 _round.tokenPrice,
                 _tokenCostUSD * _alicePurchaseAmountAsset / _alicePurchaseAmountUSD,
                 _tokenCostUSD,
@@ -994,8 +994,8 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
 
 contract PresaleTest_purchaseDAI is PresaleTest {
     event Purchase(
-        uint256 indexed roundIndex,
         address indexed asset,
+        uint256 indexed roundIndex,
         uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
@@ -1088,7 +1088,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         presale.purchaseDAI(0.1 ether);
     }
 
-    function test_emits_Receipt() external {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountUSD = 1_234 ether;
         uint256 _alicePurchaseAmountAsset = _alicePurchaseAmountUSD;
 
@@ -1113,8 +1113,8 @@ contract PresaleTest_purchaseDAI is PresaleTest {
             _totalCostUSD += _tokenCostUSD;
 
             emit Purchase(
-                i,
                 address(USDC),
+                i,
                 _round.tokenPrice,
                 _tokenCostUSD * _alicePurchaseAmountAsset / _alicePurchaseAmountUSD,
                 _tokenCostUSD,
@@ -1136,8 +1136,8 @@ contract PresaleTest_purchaseDAI is PresaleTest {
 
 contract PresaleTest_allocate is PresaleTest {
     event Purchase(
-        uint256 indexed roundIndex,
         address indexed asset,
+        uint256 indexed roundIndex,
         uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
@@ -1226,7 +1226,7 @@ contract PresaleTest_allocate is PresaleTest {
         presale.allocate(ALICE, 0.1 ether);
     }
 
-    function test_emits_Receipt() external {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountUSD = 5_000 ether;
 
         vm.warp(startDate);
@@ -1249,7 +1249,7 @@ contract PresaleTest_allocate is PresaleTest {
             uint256 _tokenCostUSD = _roundAllocation * _round.tokenPrice / PRECISION;
             _totalCostUSD += _tokenCostUSD;
 
-            emit Purchase(i, address(0), _round.tokenPrice, 0, _tokenCostUSD, _roundAllocation, ALICE);
+            emit Purchase(address(0), i, _round.tokenPrice, 0, _tokenCostUSD, _roundAllocation, ALICE);
 
             _remainingUSD -= _tokenCostUSD;
 
