@@ -61,7 +61,7 @@ interface IPresale {
         uint256 remainingUSD;
         uint256 costAssets;
         uint256 costUSD;
-        uint256 liquidityUSD;
+        uint256 usdAllocated;
     }
 
     struct UserLiquidity {

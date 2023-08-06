@@ -176,7 +176,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 totalTokenAllocation;
         uint256 totalUSDAllocation;
         uint256 totalRounds;
-        uint256 totalLiquidityUSD;
         uint256 remainingUSD;
         uint256 userAllocationRemaining;
         uint256 currentIndex;
@@ -226,7 +225,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                 if (_round.roundType == RoundType.Liquidity) {
                     _c.totalUSDAllocation += _tokensCostUSD;
                     _c.remainingUSD = _subZero(_c.remainingUSD, _tokensCostUSD);
-                    _c.totalLiquidityUSD += _tokensCostUSD;
                 }
 
                 emit Purchase(receipt.id, _c.currentIndex, _tokensCostUSD, _c.userAllocation);
@@ -253,9 +251,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         receipt.remainingUSD = _c.remainingUSD;
         receipt.refundedAssets = (purchaseConfig.amountAsset * _c.remainingUSD) / purchaseConfig.amountUSD;
         receipt.tokensAllocated = _c.totalTokenAllocation;
+        receipt.usdAllocated = _c.totalUSDAllocation;
         receipt.costAssets = purchaseConfig.amountAsset - receipt.refundedAssets;
         receipt.costUSD = purchaseConfig.amountUSD - _c.remainingUSD;
-        receipt.liquidityUSD = _c.totalLiquidityUSD;
 
         // edge case to prevent the user from getting free tokens
         require(

@@ -303,9 +303,9 @@ contract PresaleTest_liquidityType is PresaleTest {
         IPresale.Receipt memory _receipt = presale.purchaseUSDC(ALICE, _alicePurchaseAmountAsset, "");
 
         assertEq(presale.userUSDAllocated(ALICE), (_alicePurchaseAmountUSD - _receipt.remainingUSD) / 2);
-        assertEq(presale.userUSDAllocated(ALICE), _receipt.liquidityUSD);
+        assertEq(presale.userUSDAllocated(ALICE), _receipt.usdAllocated);
         assertEq(presale.userTokensAllocated(ALICE), _receipt.tokensAllocated);
-        assertEq(_receipt.costUSD, _receipt.liquidityUSD * 2);
+        assertEq(_receipt.costUSD, _receipt.usdAllocated * 2);
     }
 
 }
