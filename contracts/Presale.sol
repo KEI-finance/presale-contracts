@@ -116,52 +116,68 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _setRounds(newRounds);
     }
 
-    function purchase() public payable override whenNotPaused returns (uint256 allocation) {
-        allocation = purchase(_msgSender());
-    }
-
-    function purchase(address account) public payable override whenNotPaused returns (uint256 allocation) {
+    function purchase(address account, bytes memory data) public payable override whenNotPaused returns (uint256 allocation) {
         uint256 _amountUSD = ethToUsd(msg.value);
 
         PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: address(0), amountAsset: msg.value, amountUSD: _amountUSD, account: account});
+            PurchaseConfig({
+                asset: address(0),
+                amountAsset: msg.value,
+                amountUSD: _amountUSD,
+                account: account,
+                data: data
+            });
 
         allocation = _sync(_purchaseConfig);
     }
 
-    function purchaseUSDC(uint256 amount) external override whenNotPaused returns (uint256 allocation) {
-        address _sender = _msgSender();
-
-        IERC20(USDC).transferFrom(_sender, address(this), amount);
+    function purchaseUSDC(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (uint256 allocation) {
+        IERC20(USDC).transferFrom(_msgSender(), address(this), amount);
 
         uint256 _amountScaled = amount * USDC_SCALE;
 
         PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: USDC, amountAsset: amount, amountUSD: _amountScaled, account: _sender});
+            PurchaseConfig({
+                asset: USDC,
+                amountAsset: amount,
+                amountUSD: _amountScaled,
+                account: account,
+                data: data
+            });
 
         allocation = _sync(_purchaseConfig);
     }
 
-    function purchaseDAI(uint256 amount) external override whenNotPaused returns (uint256 allocation) {
-        address _sender = _msgSender();
-
-        IERC20(DAI).transferFrom(_sender, address(this), amount);
+    function purchaseDAI(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (uint256 allocation) {
+        IERC20(DAI).transferFrom(_msgSender(), address(this), amount);
 
         PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: DAI, amountAsset: amount, amountUSD: amount, account: _sender});
+            PurchaseConfig({
+                asset: DAI,
+                amountAsset: amount,
+                amountUSD: amount,
+                account: account,
+                data: data
+            });
 
         allocation = _sync(_purchaseConfig);
     }
 
-    function allocate(address account, uint256 amountUSD) external override onlyOwner returns (uint256 allocation) {
+    function allocate(address account, uint256 amountUSD, bytes calldata data) external override onlyOwner returns (uint256 allocation) {
         PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({asset: address(0), amountAsset: 0, amountUSD: amountUSD, account: account});
+            PurchaseConfig({
+                asset: address(0),
+                amountAsset: 0,
+                amountUSD: amountUSD,
+                account: account,
+                data: data
+            });
 
         allocation = _sync(_purchaseConfig);
     }
 
     receive() external payable {
-        purchase();
+        purchase(_msgSender(), "");
     }
 
     struct SyncCache {
@@ -171,6 +187,8 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 remainingUSD;
         uint256 userAllocationRemaining;
         uint256 currentIndex;
+        uint256 roundAllocationRemaining;
+        uint256 userAllocation;
     }
 
     function _sync(PurchaseConfig memory purchaseConfig) private returns (uint256) {
@@ -191,30 +209,27 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         while (_c.currentIndex < _c.totalRounds && _c.remainingUSD > 0 && _c.userAllocationRemaining > 0) {
             RoundConfig memory _round = $rounds[_c.currentIndex];
-            uint256 _roundTotalAllocated = $roundTokensAllocated[_c.currentIndex];
-            uint256 _roundAllocationRemaining =
-                _roundTotalAllocated < _round.tokensAllocated ? _round.tokensAllocated - _roundTotalAllocated : 0;
 
-            uint256 _userAllocation = usdToTokens(_c.remainingUSD, _round.tokenPrice);
+            _c.roundAllocationRemaining = _remainingRoundAllocation(_c.currentIndex, _round.tokensAllocated);
+            _c.userAllocation = usdToTokens(_c.remainingUSD, _round.tokenPrice);
 
-            if (_userAllocation > _roundAllocationRemaining) {
-                _userAllocation = _roundAllocationRemaining;
+            if (_c.userAllocation > _c.roundAllocationRemaining) {
+                _c.userAllocation = _c.roundAllocationRemaining;
             }
-            if (_userAllocation > _c.userAllocationRemaining) {
-                _userAllocation = _c.userAllocationRemaining;
+            if (_c.userAllocation > _c.userAllocationRemaining) {
+                _c.userAllocation = _c.userAllocationRemaining;
             }
 
-            if (_userAllocation > 0) {
-                uint256 _tokensCostUSD = tokensToUSD(_userAllocation, _round.tokenPrice);
+            if (_c.userAllocation > 0) {
+                uint256 _tokensCostUSD = tokensToUSD(_c.userAllocation, _round.tokenPrice);
                 uint256 _roundPurchaseAmountAsset = (_tokensCostUSD * purchaseConfig.amountAsset) / purchaseConfig.amountUSD;
 
                 _c.remainingUSD -= _tokensCostUSD;
-                _c.userAllocationRemaining -= _userAllocation;
-                _c.totalAllocation += _userAllocation;
+                _c.userAllocationRemaining -= _c.userAllocation;
+                _c.totalAllocation += _c.userAllocation;
                 _c.totalCostAsset += _roundPurchaseAmountAsset;
 
-                $roundTokensAllocated[_c.currentIndex] += _userAllocation;
-                $totalRaisedUSD += _tokensCostUSD;
+                $roundTokensAllocated[_c.currentIndex] += _c.userAllocation;
 
                 emit Purchase(
                     purchaseConfig.asset,
@@ -222,21 +237,25 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
                     _round.tokenPrice,
                     _roundPurchaseAmountAsset,
                     _tokensCostUSD,
-                    _userAllocation,
+                    _c.userAllocation,
+                    purchaseConfig.data,
                     purchaseConfig.account
                 );
             }
 
             // if we have used everything then lets increment current index. and only increment if we are not on the last round.
-            if (_userAllocation == _roundAllocationRemaining && _c.currentIndex < _c.totalRounds - 1) {
+            if (_c.userAllocation == _c.roundAllocationRemaining && _c.currentIndex < _c.totalRounds - 1) {
                 _c.currentIndex++;
             } else {
                 break;
             }
         }
 
-        $currentRoundIndex = _c.currentIndex;
-        $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _c.userAllocationRemaining;
+        unchecked {
+            $totalRaisedUSD += purchaseConfig.amountUSD - _c.remainingUSD;
+            $currentRoundIndex = _c.currentIndex;
+            $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _c.userAllocationRemaining;
+        }
 
         // for when we are dealing with ceil div of more than the amount required.
         if (_c.totalCostAsset > purchaseConfig.amountAsset) _c.totalCostAsset = purchaseConfig.amountAsset;
@@ -300,5 +319,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         emit ConfigUpdated($config, newConfig, _msgSender());
 
         $config = newConfig;
+    }
+
+    function _remainingRoundAllocation(uint256 roundIndex, uint256 maxAllocation) private view returns (uint256) {
+        uint256 _roundTotalAllocated = $roundTokensAllocated[roundIndex];
+        return _roundTotalAllocated < maxAllocation ? maxAllocation - _roundTotalAllocated : 0;
     }
 }
