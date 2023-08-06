@@ -123,6 +123,36 @@ interface IPresale {
     }
 
     /**
+     * @notice The USDC address.
+     */
+    function USDC() external view returns (address);
+
+    /**
+     * @notice The DAI address.
+     */
+    function DAI() external view returns (address);
+
+    /**
+     * @notice The Chainlink Oracle ETH/USD address.
+     */
+    function ORACLE() external view returns (address);
+
+    /**
+     * @notice The 8 decimal precision used in the contract.
+     */
+    function PRECISION() external view returns (uint256);
+
+    /**
+     * @notice The 18 decimal USD related precision used in the contract.
+     */
+    function USD_PRECISION() external view returns (uint256);
+
+    /**
+     * @notice The decimal difference between USDC and `USD_PRECISION`.
+     */
+    function USDC_SCALE() external view returns (uint256);
+
+    /**
      * @notice Returns the current round index.
      */
     function currentRoundIndex() external view returns (uint256);
