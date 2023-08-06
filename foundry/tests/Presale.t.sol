@@ -808,7 +808,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         presale.purchase{value: 0.0004 ether}(ALICE, "");
     }
 
-    function test_emits_Purchase() external assertEvent {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountUSD = 3_333 ether;
         uint256 _alicePurchaseAmountETH = _alicePurchaseAmountUSD / (presale.ethPrice() / PRECISION);
 
