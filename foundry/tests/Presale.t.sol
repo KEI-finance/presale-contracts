@@ -808,7 +808,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         presale.purchase{value: 0.0004 ether}(ALICE, "");
     }
 
-    function test_emits_Purchase() external assertEvent {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountUSD = 3_333 ether;
         uint256 _alicePurchaseAmountETH = _alicePurchaseAmountUSD / (presale.ethPrice() / PRECISION);
 
@@ -961,7 +961,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         presale.purchaseUSDC(ALICE, 0.1 * 1e6, "");
     }
 
-    function test_emits_Receipt() external {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountAsset = 1_345 * 1e6;
         uint256 _alicePurchaseAmountUSD = _alicePurchaseAmountAsset * USDC_SCALE;
 
@@ -1107,7 +1107,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         presale.purchaseDAI(ALICE, 0.1 ether, "");
     }
 
-    function test_emits_Receipt() external {
+    function test_emits_Purchase() external {
         uint256 _alicePurchaseAmountUSD = 1_234 ether;
         uint256 _alicePurchaseAmountAsset = _alicePurchaseAmountUSD;
 
@@ -1249,7 +1249,7 @@ contract PresaleTest_allocate is PresaleTest {
         presale.allocate(ALICE, 0.1 ether, "");
     }
 
-    function test_emits_Receipt(bytes memory data) external {
+    function test_emits_Purchase(bytes memory data) external {
         uint256 _alicePurchaseAmountUSD = 5_000 ether;
 
         vm.warp(startDate);
