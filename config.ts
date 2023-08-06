@@ -1,34 +1,46 @@
 import { IPresale } from "./typechain-types";
 import { BigNumber } from "ethers";
 
+enum RoundType {
+  Liquidity,
+  Tokens,
+}
+
 export const rounds: IPresale.RoundConfigStruct[] = [
   {
     tokenPrice: makePrice(0.07),
-    tokensAllocated: makeTokens(2e6),
+    tokenAllocation: makeTokens(2e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.075),
-    tokensAllocated: makeTokens(2e6),
+    tokenAllocation: makeTokens(2e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.08),
-    tokensAllocated: makeTokens(3e6),
+    tokenAllocation: makeTokens(3e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.085),
-    tokensAllocated: makeTokens(6e6),
+    tokenAllocation: makeTokens(6e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.09),
-    tokensAllocated: makeTokens(8e6),
+    tokenAllocation: makeTokens(8e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.095),
-    tokensAllocated: makeTokens(8e6),
+    tokenAllocation: makeTokens(8e6),
+    roundType: RoundType.Tokens,
   },
   {
     tokenPrice: makePrice(0.1),
-    tokensAllocated: makeTokens(6e6),
+    tokenAllocation: makeTokens(6e6),
+    roundType: RoundType.Liquidity,
   },
 ];
 

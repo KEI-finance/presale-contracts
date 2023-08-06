@@ -14,29 +14,36 @@ interface IPresale {
     );
 
     event Purchase(
-        address indexed asset,
+        uint256 indexed receiptId,
         uint256 indexed roundIndex,
-        uint256 tokenPrice,
-        uint256 amountAsset,
         uint256 amountUSD,
-        uint256 tokensAllocated,
-        bytes data,
+        uint256 tokensAllocated
+    );
+
+    event PurchaseReceipt(
+        uint256 indexed id,
+        PurchaseConfig purchase,
+        Receipt receipt,
         address indexed sender
     );
 
-    event Refund(address indexed asset, uint256 amountAsset, uint256 amountUSD, address indexed sender);
+    enum RoundType {
+        Liquidity,
+        Tokens
+    }
 
     struct PresaleConfig {
         uint128 minDepositAmount;
         uint128 maxUserAllocation;
         uint48 startDate;
         uint48 endDate;
-        address payable withdrawTo;
+        address withdrawTo;
     }
 
     struct RoundConfig {
         uint256 tokenPrice;
-        uint256 tokensAllocated;
+        uint256 tokenAllocation;
+        RoundType roundType;
     }
 
     struct PurchaseConfig {
@@ -47,6 +54,21 @@ interface IPresale {
         bytes data;
     }
 
+    struct Receipt {
+        uint256 id;
+        uint256 tokensAllocated;
+        uint256 refundedAssets;
+        uint256 remainingUSD;
+        uint256 costAssets;
+        uint256 costUSD;
+        uint256 liquidityUSD;
+    }
+
+    struct UserLiquidity {
+        uint128 tokensAllocated;
+        uint128 usdAllocated;
+    }
+
     function currentRoundIndex() external view returns (uint256);
 
     function config() external view returns (PresaleConfig memory);
@@ -55,6 +77,8 @@ interface IPresale {
 
     function rounds() external view returns (RoundConfig[] memory);
 
+    function totalPurchases() external view returns (uint256);
+
     function totalRounds() external view returns (uint256);
 
     function totalRaisedUSD() external view returns (uint256);
@@ -62,6 +86,8 @@ interface IPresale {
     function roundTokensAllocated(uint256 roundIndex) external view returns (uint256);
 
     function userTokensAllocated(address account) external view returns (uint256);
+
+    function userUSDAllocated(address account) external view returns (uint256);
 
     function ethPrice() external view returns (uint256);
 
@@ -81,11 +107,11 @@ interface IPresale {
 
     function setRounds(RoundConfig[] calldata newRounds) external;
 
-    function purchase(address account, bytes memory data) external payable returns (uint256 allocation);
+    function purchase(address account, bytes memory data) external payable returns (Receipt memory);
 
-    function purchaseUSDC(address account, uint256 amount, bytes calldata data) external returns (uint256 allocation);
+    function purchaseUSDC(address account, uint256 amount, bytes calldata data) external returns (Receipt memory);
 
-    function purchaseDAI(address account, uint256 amount, bytes calldata data) external returns (uint256 allocation);
+    function purchaseDAI(address account, uint256 amount, bytes calldata data) external returns (Receipt memory);
 
-    function allocate(address account, uint256 amountUSD, bytes calldata data) external returns (uint256 allocation);
+    function allocate(address account, uint256 amountUSD, bytes calldata data) external returns (Receipt memory);
 }
