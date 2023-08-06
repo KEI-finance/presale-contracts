@@ -119,61 +119,49 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function purchase(address account, bytes memory data) public payable override whenNotPaused returns (uint256 allocation) {
         uint256 _amountUSD = ethToUsd(msg.value);
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({
-                asset: address(0),
-                amountAsset: msg.value,
-                amountUSD: _amountUSD,
-                account: account,
-                data: data
-            });
-
-        allocation = _sync(_purchaseConfig);
+        return _purchase(PurchaseConfig({
+            asset: address(0),
+            amountAsset: msg.value,
+            amountUSD: _amountUSD,
+            account: account,
+            data: data
+        }));
     }
 
     function purchaseUSDC(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (uint256 allocation) {
         IERC20(USDC).transferFrom(_msgSender(), address(this), amount);
 
-        uint256 _amountScaled = amount * USDC_SCALE;
+        uint256 _amountUSD = amount * USDC_SCALE;
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({
-                asset: USDC,
-                amountAsset: amount,
-                amountUSD: _amountScaled,
-                account: account,
-                data: data
-            });
-
-        allocation = _sync(_purchaseConfig);
+        return _purchase(PurchaseConfig({
+            asset: USDC,
+            amountAsset: amount,
+            amountUSD: _amountUSD,
+            account: account,
+            data: data
+        }));
     }
 
     function purchaseDAI(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (uint256 allocation) {
         IERC20(DAI).transferFrom(_msgSender(), address(this), amount);
 
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({
-                asset: DAI,
-                amountAsset: amount,
-                amountUSD: amount,
-                account: account,
-                data: data
-            });
-
-        allocation = _sync(_purchaseConfig);
+        return _purchase(PurchaseConfig({
+            asset: DAI,
+            amountAsset: amount,
+            amountUSD: amount,
+            account: account,
+            data: data
+        }));
     }
 
     function allocate(address account, uint256 amountUSD, bytes calldata data) external override onlyOwner returns (uint256 allocation) {
-        PurchaseConfig memory _purchaseConfig =
-            PurchaseConfig({
-                asset: address(0),
-                amountAsset: 0,
-                amountUSD: amountUSD,
-                account: account,
-                data: data
-            });
-
-        allocation = _sync(_purchaseConfig);
+        return _purchase(PurchaseConfig({
+            asset: address(0),
+            amountAsset: 0,
+            amountUSD: amountUSD,
+            account: account,
+            data: data
+        }));
     }
 
     receive() external payable {
@@ -191,7 +179,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         uint256 userAllocation;
     }
 
-    function _sync(PurchaseConfig memory purchaseConfig) private returns (uint256) {
+    function _purchase(PurchaseConfig memory purchaseConfig) private returns (uint256) {
         PresaleConfig memory _config = $config;
 
         require(block.timestamp >= _config.startDate, "RAISE_NOT_STARTED");
