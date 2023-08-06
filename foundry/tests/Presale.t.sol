@@ -105,12 +105,11 @@ contract PresaleTest is Test {
         for (uint256 i; i < totalRounds; ++i) {
             tokensAllocated.push(10_000 * PRECISION);
 
-            IPresale.RoundConfig memory _round =
-                IPresale.RoundConfig({
-                    tokenPrice: tokenPrices[i],
-                    tokenAllocation: tokensAllocated[i],
-                    roundType: IPresale.RoundType.Tokens
-                });
+            IPresale.RoundConfig memory _round = IPresale.RoundConfig({
+                tokenPrice: tokenPrices[i],
+                tokenAllocation: tokensAllocated[i],
+                roundType: IPresale.RoundType.Tokens
+            });
 
             rounds.push(_round);
         }
@@ -272,9 +271,7 @@ contract PresaleTest_roundAllocated is PresaleTest {
 }
 
 contract PresaleTest_liquidityType is PresaleTest {
-
     constructor() {
-
         IPresale.RoundConfig[] memory _rounds = new IPresale.RoundConfig[](2);
 
         _rounds[0] = IPresale.RoundConfig({
@@ -307,7 +304,6 @@ contract PresaleTest_liquidityType is PresaleTest {
         assertEq(presale.userTokensAllocated(ALICE), _receipt.tokensAllocated);
         assertEq(_receipt.costUSD, _receipt.usdAllocated * 2);
     }
-
 }
 
 contract PresaleTest_totalRaisedUSD is PresaleTest {
@@ -577,12 +573,11 @@ contract PresaleTest_setRounds is PresaleTest {
         _tokenPrices[2] = 0.08 ether;
 
         for (uint256 i; i < 3; ++i) {
-            IPresale.RoundConfig memory _round =
-                IPresale.RoundConfig({
-                    tokenPrice: _tokenPrices[i],
-                    tokenAllocation: 10_000 * PRECISION,
-                    roundType: IPresale.RoundType.Tokens
-                });
+            IPresale.RoundConfig memory _round = IPresale.RoundConfig({
+                tokenPrice: _tokenPrices[i],
+                tokenAllocation: 10_000 * PRECISION,
+                roundType: IPresale.RoundType.Tokens
+            });
             _newRounds.push(_round);
         }
 
@@ -607,12 +602,7 @@ contract PresaleTest_setRounds is PresaleTest {
 }
 
 contract PresaleTest_purchase is PresaleTest {
-    event Purchase(
-        uint256 indexed receiptId,
-        uint256 indexed roundIndex,
-        uint256 amountUSD,
-        uint256 tokensAllocated
-    );
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
 
     uint256 private _totalCostUSD;
     uint256 private _totalAllocation;
@@ -752,12 +742,7 @@ contract PresaleTest_purchase is PresaleTest {
 }
 
 contract PresaleTest_purchaseForAccount is PresaleTest {
-    event Purchase(
-        uint256 indexed receiptId,
-        uint256 indexed roundIndex,
-        uint256 amountUSD,
-        uint256 tokensAllocated
-    );
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
 
     uint256 private _totalCostUSD;
     uint256 private _totalAllocation;
@@ -897,12 +882,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
 }
 
 contract PresaleTest_purchaseUSDC is PresaleTest {
-    event Purchase(
-        uint256 indexed receiptId,
-        uint256 indexed roundIndex,
-        uint256 amountUSD,
-        uint256 tokensAllocated
-    );
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
 
     uint256 private _totalCostUSD;
     uint256 private _totalAllocation;
@@ -1042,12 +1022,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
 }
 
 contract PresaleTest_purchaseDAI is PresaleTest {
-    event Purchase(
-        uint256 indexed receiptId,
-        uint256 indexed roundIndex,
-        uint256 amountUSD,
-        uint256 tokensAllocated
-    );
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
 
     uint256 private _totalCostUSD;
     uint256 private _totalAllocation;
@@ -1182,12 +1157,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
 }
 
 contract PresaleTest_allocate is PresaleTest {
-    event Purchase(
-        uint256 indexed receiptId,
-        uint256 indexed roundIndex,
-        uint256 amountUSD,
-        uint256 tokensAllocated
-    );
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
 
     uint256 private _totalCostUSD;
     uint256 private _totalAllocation;
