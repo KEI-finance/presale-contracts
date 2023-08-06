@@ -20,6 +20,7 @@ interface IPresale {
         uint256 amountAsset,
         uint256 amountUSD,
         uint256 tokensAllocated,
+        bytes data,
         address indexed sender
     );
 
@@ -43,6 +44,7 @@ interface IPresale {
         uint256 amountAsset;
         uint256 amountUSD;
         address account;
+        bytes data;
     }
 
     function currentRoundIndex() external view returns (uint256);
@@ -79,13 +81,11 @@ interface IPresale {
 
     function setRounds(RoundConfig[] calldata newRounds) external;
 
-    function purchase() external payable returns (uint256 allocation);
+    function purchase(address account, bytes memory data) external payable returns (uint256 allocation);
 
-    function purchase(address account) external payable returns (uint256 allocation);
+    function purchaseUSDC(address account, uint256 amount, bytes calldata data) external returns (uint256 allocation);
 
-    function purchaseUSDC(uint256 amount) external returns (uint256 allocation);
+    function purchaseDAI(address account, uint256 amount, bytes calldata data) external returns (uint256 allocation);
 
-    function purchaseDAI(uint256 amount) external returns (uint256 allocation);
-
-    function allocate(address account, uint256 amountUSD) external returns (uint256 allocation);
+    function allocate(address account, uint256 amountUSD, bytes calldata data) external returns (uint256 allocation);
 }
