@@ -110,7 +110,7 @@ interface IPresale {
      * @param remainingUSD The remaining USD amount that was not spent.
      * @param costAssets The number of assets spent.
      * @param costUSD The USD value of the assets spent.
-     * @param usdAllocated The USD value of the tokens allocated.
+     * @param usdAllocated The USD value of liquidity provided.
      */
     struct Receipt {
         uint256 id;
@@ -195,14 +195,14 @@ interface IPresale {
     function roundTokensAllocated(uint256 roundIndex) external view returns (uint256);
 
     /**
-     * @notice Returns the number of tokens allocated to a specific user.
+     * @notice Returns the number of tokens allocated to a specific user across `Token` type rounds.
      * @param account The account to return the token allocation of.
      */
     function userTokensAllocated(address account) external view returns (uint256);
 
     /**
-     * @notice Returns USD value of the tokens allocated to a specific user.
-     * @param account The account to return the USD allocated tokens value of.
+     * @notice Returns the USD liquidity provision balance of a user across all `Liquidity` type rounds.
+     * @param account The account to return the total USD liquidity provision balance of.
      */
     function userUSDAllocated(address account) external view returns (uint256);
 
@@ -277,8 +277,8 @@ interface IPresale {
     function setRounds(RoundConfig[] calldata newRounds) external;
 
     /**
-     * @notice Purchases tokens for `account` by spending ETH.
-     * @param account The account to be allocated the purchased tokens.
+     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending ETH - depending on the round type.
+     * @param account The account to be allocated the purchased tokens or increased liquidity provision balance.
      * @param data Additional bytes data tied to the purchase.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
@@ -294,9 +294,9 @@ interface IPresale {
     function purchase(address account, bytes memory data) external payable returns (Receipt memory);
 
     /**
-     * @notice Purchases tokens for `account` by spending USDC.
-     * @param account The account to be allocated the purchased tokens.
-     * @param amount The amount of USDC intended for purchase of tokens.
+     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending USDC - depending on the round type.
+     * @param account The account to be allocated the purchased tokens or increased liquidity provision balance.
+     * @param amount The amount of USDC intended to be spent.
      * @param data Additional bytes data tied to the purchase.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
@@ -312,9 +312,9 @@ interface IPresale {
     function purchaseUSDC(address account, uint256 amount, bytes calldata data) external returns (Receipt memory);
 
     /**
-     * @notice Purchases tokens for `account` by spending DAI.
-     * @param account The account to be allocated the purchased tokens.
-     * @param amount The amount of DAI intended for purchase of tokens.
+     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending DAI - depending on the round type.
+     * @param account The account to be allocated the purchased tokens or increased liquidity provision balance.
+     * @param amount The amount of DAI intended to be spent.
      * @param data Additional bytes data tied to the purchase.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
@@ -330,9 +330,9 @@ interface IPresale {
     function purchaseDAI(address account, uint256 amount, bytes calldata data) external returns (Receipt memory);
 
     /**
-     * @notice Allocates tokens for `account` without the need for spending any tokens.
-     * @param account The account to be allocated the purchased tokens.
-     * @param amountUSD The USD value of the intended allocation of tokens.
+     * @notice Allocates tokens or liquidity provision balance for `account` without the need for spending any tokens.
+     * @param account The account to be allocated the purchased tokens or increase liquidity provision balance.
+     * @param amountUSD The USD value of the intended allocation of tokens or liquidity provision.
      * @param data Additional bytes data tied to the purchase.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
