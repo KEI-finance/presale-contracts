@@ -64,6 +64,18 @@ interface IPresale {
         uint256 usdAllocated;
     }
 
+    function USDC() external view returns (address);
+
+    function DAI() external view returns (address);
+
+    function ORACLE() external view returns (address);
+
+    function PRECISION() external view returns (uint256);
+
+    function USD_PRECISION() external view returns (uint256);
+
+    function USDC_SCALE() external view returns (uint256);
+
     function currentRoundIndex() external view returns (uint256);
 
     function config() external view returns (PresaleConfig memory);

@@ -17,13 +17,13 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
-    address public immutable USDC;
-    address public immutable DAI;
-    AggregatorV3Interface public immutable ORACLE;
+    address public immutable override USDC;
+    address public immutable override DAI;
+    address public immutable override ORACLE;
 
-    uint256 private immutable PRECISION = 1e8;
-    uint256 private immutable USD_PRECISION = 1e18;
-    uint256 private immutable USDC_SCALE = 1e12;
+    uint256 public immutable override PRECISION = 1e8;
+    uint256 public immutable override USD_PRECISION = 1e18;
+    uint256 public immutable override USDC_SCALE = 1e12;
 
     uint256 private $currentRoundIndex;
     uint256 private $totalRaisedUSD;
@@ -43,7 +43,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         PresaleConfig memory newConfig,
         RoundConfig[] memory newRounds
     ) {
-        ORACLE = AggregatorV3Interface(oracle);
+        ORACLE = oracle;
         USDC = usdc;
         DAI = dai;
 
@@ -92,7 +92,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function ethPrice() public view override returns (uint256) {
-        (, int256 price,,,) = ORACLE.latestRoundData();
+        (, int256 price,,,) = AggregatorV3Interface(ORACLE).latestRoundData();
         return uint256(price);
     }
 

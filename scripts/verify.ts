@@ -5,7 +5,7 @@ import { rounds } from "../config";
 async function main() {
   console.log("verifying");
   await hre.run("verify:verify", {
-    address: "0x4638e743A26d57D8C97D8ABc0B6D408eD2ab37F4",
+    address: "0x6e3Dd204D5e7f0bef67B418d08fEbb799d245329",
     constructorArguments: [
       "0x48731cF7e84dc94C5f84577882c14Be11a5B7456",
       "0x3829018f5c984b2b7cf8382704da7329d4c27da4",
