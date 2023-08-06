@@ -286,7 +286,7 @@ interface IPresale {
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
      * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
      * @custom:requirement The USD value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
-     * @custom:requirement Either the refunded purchase asset amount, tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
+     * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
@@ -304,7 +304,7 @@ interface IPresale {
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
      * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
      * @custom:requirement The USD value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
-     * @custom:requirement Either the refunded purchase asset amount, tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
+     * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
@@ -322,7 +322,7 @@ interface IPresale {
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
      * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
      * @custom:requirement The USD value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
-     * @custom:requirement Either the refunded purchase asset amount, tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
+     * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
@@ -341,7 +341,7 @@ interface IPresale {
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
      * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
      * @custom:requirement The USD value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
-     * @custom:requirement Either the refunded purchase asset amount, tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
+     * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
