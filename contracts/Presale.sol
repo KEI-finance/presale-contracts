@@ -172,7 +172,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         purchase(_msgSender(), "");
     }
 
-    struct SyncCache {
+    struct PurchaseCache {
         uint256 totalTokenAllocation;
         uint256 totalUSDAllocation;
         uint256 totalRounds;
@@ -193,7 +193,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             purchaseConfig.amountUSD >= _config.minDepositAmount || _config.minDepositAmount == 0, "MIN_DEPOSIT_AMOUNT"
         );
 
-        SyncCache memory _c;
+        PurchaseCache memory _c;
 
         _c.totalRounds = $rounds.length;
         _c.currentIndex = $currentRoundIndex;
