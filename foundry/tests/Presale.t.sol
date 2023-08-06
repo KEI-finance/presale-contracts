@@ -557,8 +557,8 @@ contract PresaleTest_setRounds is PresaleTest {
 
 contract PresaleTest_purchase is PresaleTest {
     event Purchase(
-        uint256 indexed roundIndex,
         address indexed asset,
+        uint256 indexed roundIndex,
         uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
@@ -705,8 +705,8 @@ contract PresaleTest_purchase is PresaleTest {
 
 contract PresaleTest_purchaseForAccount is PresaleTest {
     event Purchase(
-        uint256 indexed roundIndex,
         address indexed asset,
+        uint256 indexed roundIndex,
         uint256 tokenPrice,
         uint256 amountAsset,
         uint256 amountUSD,
@@ -828,8 +828,8 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
             _totalCostUSD += _tokenCostUSD;
 
             emit Purchase(
-                i,
                 address(0),
+                i,
                 _round.tokenPrice,
                 _tokenCostUSD * _alicePurchaseAmountETH / _alicePurchaseAmountUSD,
                 _tokenCostUSD,
