@@ -13,6 +13,9 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./IPresale.sol";
 
+/**
+ * @notice Implementation of the {IPresale} interface.
+ */
 contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -51,121 +54,207 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         _setRounds(newRounds);
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function currentRoundIndex() external view returns (uint256) {
         return $currentRoundIndex;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function config() external view returns (PresaleConfig memory) {
         return $config;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function round(uint256 roundIndex) external view override returns (RoundConfig memory) {
         return $rounds[roundIndex];
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function rounds() external view override returns (RoundConfig[] memory) {
         return $rounds;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function totalPurchases() external view override returns (uint256) {
         return $totalPurchases;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function totalRounds() external view override returns (uint256) {
         return $rounds.length;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function totalRaisedUSD() external view override returns (uint256) {
         return $totalRaisedUSD;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function roundTokensAllocated(uint256 roundIndex) external view returns (uint256) {
         return $roundTokensAllocated[roundIndex];
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function userTokensAllocated(address account) external view override returns (uint256) {
         return $userTokensAllocated[account];
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function userUSDAllocated(address account) external view override returns (uint256) {
         return $userUSDAllocated[account];
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function ethPrice() public view override returns (uint256) {
         (, int256 price,,,) = AggregatorV3Interface(ORACLE).latestRoundData();
         return uint256(price);
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function ethToUsd(uint256 amount) public view override returns (uint256 _usdAmount) {
         _usdAmount = (amount * ethPrice()) / PRECISION;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function ethToTokens(uint256 amount, uint256 price) public view override returns (uint256 _tokenAmount) {
         _tokenAmount = usdToTokens(ethToUsd(amount), price);
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function usdToTokens(uint256 amount, uint256 price) public pure override returns (uint256) {
         return (amount * PRECISION) / price;
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function tokensToUSD(uint256 amount, uint256 price) public pure override returns (uint256) {
         return (amount * price).ceilDiv(PRECISION);
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function pause() external override onlyOwner {
         _pause();
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function unpause() external override onlyOwner {
         _unpause();
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function setConfig(PresaleConfig calldata newConfig) external override onlyOwner {
         _setConfig(newConfig);
     }
 
+    /**
+     * @inheritdoc IPresale
+     */
     function setRounds(RoundConfig[] calldata newRounds) external override onlyOwner {
         _setRounds(newRounds);
     }
 
-    function purchase(address account, bytes memory data) public payable override whenNotPaused returns (Receipt memory) {
-        return _purchase(PurchaseConfig({
-            asset: address(0),
-            amountAsset: msg.value,
-            amountUSD: ethToUsd(msg.value),
-            account: account,
-            data: data
-        }));
+    /**
+     * @inheritdoc IPresale
+     */
+    function purchase(address account, bytes memory data)
+        public
+        payable
+        override
+        whenNotPaused
+        returns (Receipt memory)
+    {
+        return _purchase(
+            PurchaseConfig({
+                asset: address(0),
+                amountAsset: msg.value,
+                amountUSD: ethToUsd(msg.value),
+                account: account,
+                data: data
+            })
+        );
     }
 
-    function purchaseUSDC(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (Receipt memory) {
-        return _purchase(PurchaseConfig({
-            asset: USDC,
-            amountAsset: amount,
-            amountUSD: amount * USDC_SCALE,
-            account: account,
-            data: data
-        }));
+    /**
+     * @inheritdoc IPresale
+     */
+    function purchaseUSDC(address account, uint256 amount, bytes calldata data)
+        external
+        override
+        whenNotPaused
+        returns (Receipt memory)
+    {
+        return _purchase(
+            PurchaseConfig({
+                asset: USDC,
+                amountAsset: amount,
+                amountUSD: amount * USDC_SCALE,
+                account: account,
+                data: data
+            })
+        );
     }
 
-    function purchaseDAI(address account, uint256 amount, bytes calldata data) external override whenNotPaused returns (Receipt memory) {
-        return _purchase(PurchaseConfig({
-            asset: DAI,
-            amountAsset: amount,
-            amountUSD: amount,
-            account: account,
-            data: data
-        }));
+    /**
+     * @inheritdoc IPresale
+     */
+    function purchaseDAI(address account, uint256 amount, bytes calldata data)
+        external
+        override
+        whenNotPaused
+        returns (Receipt memory)
+    {
+        return _purchase(
+            PurchaseConfig({asset: DAI, amountAsset: amount, amountUSD: amount, account: account, data: data})
+        );
     }
 
-    function allocate(address account, uint256 amountUSD, bytes calldata data) external override onlyOwner returns (Receipt memory) {
-        return _purchase(PurchaseConfig({
-            asset: address(0),
-            amountAsset: 0,
-            amountUSD: amountUSD,
-            account: account,
-            data: data
-        }));
+    /**
+     * @inheritdoc IPresale
+     */
+    function allocate(address account, uint256 amountUSD, bytes calldata data)
+        external
+        override
+        onlyOwner
+        returns (Receipt memory)
+    {
+        return _purchase(
+            PurchaseConfig({asset: address(0), amountAsset: 0, amountUSD: amountUSD, account: account, data: data})
+        );
     }
 
     receive() external payable {
@@ -257,10 +346,9 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
 
         // edge case to prevent the user from getting free tokens
         require(
-            receipt.refundedAssets == 0 ||
-            receipt.tokensAllocated == 0 ||
-            receipt.refundedAssets != purchaseConfig.amountAsset,
-            'INVALID_PURCHASE'
+            receipt.refundedAssets == 0 || receipt.tokensAllocated == 0
+                || receipt.refundedAssets != purchaseConfig.amountAsset,
+            "INVALID_PURCHASE"
         );
 
         if (receipt.refundedAssets > 0) {
@@ -271,7 +359,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
             _send(purchaseConfig.asset, receipt.costAssets, _config.withdrawTo);
         }
 
-        require(receipt.tokensAllocated > 0, 'NO_TOKENS_ALLOCATED');
+        require(receipt.tokensAllocated > 0, "NO_TOKENS_ALLOCATED");
 
         emit PurchaseReceipt(receipt.id, purchaseConfig, receipt, _msgSender());
     }
@@ -288,7 +376,10 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     function _setRounds(RoundConfig[] memory newRounds) private {
         uint256 _totalRounds = $rounds.length;
         for (uint256 i; i < newRounds.length; ++i) {
-            if (i >= _totalRounds || $roundTokensAllocated[i] < newRounds[i].tokenAllocation || i == newRounds.length - 1) {
+            if (
+                i >= _totalRounds || $roundTokensAllocated[i] < newRounds[i].tokenAllocation
+                    || i == newRounds.length - 1
+            ) {
                 emit RoundsUpdated($rounds, newRounds, $currentRoundIndex, i, _msgSender());
                 $currentRoundIndex = i;
                 break;
@@ -302,7 +393,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         for (uint256 i; i < newRounds.length; ++i) {
             $rounds.push(newRounds[i]);
         }
-
     }
 
     function _setConfig(PresaleConfig memory newConfig) private {
@@ -320,10 +410,7 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function _calculateUserAllocation(uint256 amountUSD, RoundConfig memory round_) private pure returns (uint256) {
-        return usdToTokens(
-            round_.roundType == RoundType.Liquidity ? amountUSD / 2 : amountUSD,
-            round_.tokenPrice
-        );
+        return usdToTokens(round_.roundType == RoundType.Liquidity ? amountUSD / 2 : amountUSD, round_.tokenPrice);
     }
 
     function _subZero(uint256 a, uint256 b) private pure returns (uint256) {
