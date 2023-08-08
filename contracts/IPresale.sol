@@ -43,7 +43,7 @@ interface IPresale {
 
     /**
      * @notice Emitted when a purchase is made.
-     * @param receiptId The receipt ID.
+     * @param id The receipt ID.
      * @param purchase The purchase configuration.
      * @param receipt The receipt details.
      * @param sender The message sender that triggered the event.
