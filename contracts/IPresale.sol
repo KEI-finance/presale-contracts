@@ -41,10 +41,10 @@ interface IPresale {
      * @notice Emitted when a purchase in a round is made.
      * @param receiptId The ID of the receipt that this purchase is tied to.
      * @param roundIndex The round index that the purchase was made in.
-     * @param amountUSD The USD value of the tokens purchased.
+     * @param amountAsset The assets value of the tokens purchased.
      * @param tokensAllocated The number of tokens allocated to the purchaser.
      */
-    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountUSD, uint256 tokensAllocated);
+    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountAsset, uint256 tokensAllocated);
 
     /**
      * @notice Emitted when a purchase is made.
@@ -65,7 +65,7 @@ interface IPresale {
 
     /**
      * @notice Presale Configuration structure.
-     * @param minDepositAmount The minimum USD purchase amount.
+     * @param minDepositAmount The minimum amount of assets to purchase with.
      * @param maxUserAllocation The maximum number of tokens a user can purchase across all rounds.
      * @param startDate The unix timestamp marking the start of the presale.
      * @param endDate The unix timestamp marking the end of the presale.
@@ -188,20 +188,20 @@ interface IPresale {
     function userLiquidityAllocated(address account) external view returns (uint256);
 
     /**
-     * @notice Returns the conversion from USD to tokens.
-     * @param amount The amount of USD to convert.
+     * @notice Returns the conversion from assets to tokens. Where assets is the PRESALE_ASSET
+     * @param amount The amount of assets to convert.
      * @param price The price of tokens - based on the current round price set by admin.
-     * @return _tokenAmount The number of tokens that are equal to the value of input USD.
+     * @return tokenAmount The number of tokens that are equal to the value of input assets.
      */
-    function assetsToTokens(uint256 amount, uint256 price) external pure returns (uint256 _tokenAmount);
+    function assetsToTokens(uint256 amount, uint256 price) external pure returns (uint256 tokenAmount);
 
     /**
-     * @notice Returns the conversion from tokens to USD.
+     * @notice Returns the conversion from tokens to assets.
      * @param amount The amount of tokens to convert.
      * @param price The price of tokens - based on the current round price set by admin.
-     * @return _usdAmount The USD value of the input tokens.
+     * @return amountAsset The assets value of the input tokens.
      */
-    function tokensToAssets(uint256 amount, uint256 price) external pure returns (uint256 _usdAmount);
+    function tokensToAssets(uint256 amount, uint256 price) external pure returns (uint256 amountAsset);
 
     /**
      * @notice Closes the Presale early, before all the rounds have been complete
@@ -212,19 +212,20 @@ interface IPresale {
     function close() external;
 
     /**
-     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending ETH - depending on the round type.
+     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending DAI - depending on the round type.
      * @param account The account to be allocated the purchased tokens or increased liquidity provision balance.
+     * @param amountAsset The amount of assets intended to be spent.
      * @param data Additional bytes data tied to the purchase.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
      * @custom:requirement The contract must not be paused.
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
      * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
-     * @custom:requirement The USD value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
+     * @custom:requirement The asset value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
      * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
      */
-    function purchase(uint256 amount, address account, bytes memory data) external payable returns (Receipt memory);
+    function purchase(address account, uint256 amountAsset, bytes calldata data) external returns (Receipt memory);
 }

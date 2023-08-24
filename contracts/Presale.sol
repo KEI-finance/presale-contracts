@@ -32,11 +32,7 @@ contract Presale is IPresale, Ownable2Step {
     mapping(address => uint256) private $userTokensAllocated;
     mapping(address => uint256) private $userLiquidityAllocated;
 
-    constructor(
-        address presaleAsset,
-        PresaleConfig memory newConfig,
-        RoundConfig[] memory newRounds
-    ) {
+    constructor(address presaleAsset, PresaleConfig memory newConfig, RoundConfig[] memory newRounds) {
         PRESALE_ASSET = presaleAsset;
 
         _setConfig(newConfig);
@@ -144,19 +140,12 @@ contract Presale is IPresale, Ownable2Step {
     /**
      * @inheritdoc IPresale
      */
-    function purchase(uint256 amountAsset, address account, bytes memory data)
-        public
-        payable
+    function purchase(address account, uint256 amountAsset, bytes memory data)
+        external
         override
         returns (Receipt memory)
     {
-        return _purchase(
-            PurchaseConfig({
-                amountAsset: amountAsset,
-                account: account,
-                data: data
-            })
-        );
+        return _purchase(PurchaseConfig({amountAsset: amountAsset, account: account, data: data}));
     }
 
     struct PurchaseCache {
@@ -183,7 +172,8 @@ contract Presale is IPresale, Ownable2Step {
         require(block.timestamp >= _config.startDate, "PRESALE_NOT_STARTED");
         require(!$closed, "PRESALE_ENDED");
         require(
-            purchaseConfig.amountAsset >= _config.minDepositAmount || _config.minDepositAmount == 0, "MIN_DEPOSIT_AMOUNT"
+            purchaseConfig.amountAsset >= _config.minDepositAmount || _config.minDepositAmount == 0,
+            "MIN_DEPOSIT_AMOUNT"
         );
 
         while (_c.currentIndex < _c.totalRounds && _c.remainingAssets > 0 && _c.userAllocationRemaining > 0) {
@@ -200,20 +190,20 @@ contract Presale is IPresale, Ownable2Step {
             }
 
             if (_c.userAllocation > 0) {
-                uint256 _tokensCostAssets = tokensToAssets(_c.userAllocation, _round.tokenPrice);
+                uint256 _costAssets = tokensToAssets(_c.userAllocation, _round.tokenPrice);
 
-                _c.remainingAssets = _subZero(_c.remainingAssets, _tokensCostAssets);
+                _c.remainingAssets = _subZero(_c.remainingAssets, _costAssets);
                 _c.userAllocationRemaining = _subZero(_c.userAllocationRemaining, _c.userAllocation);
                 _c.totalTokenAllocation += _c.userAllocation;
 
                 $roundTokensAllocated[_c.currentIndex] += _c.userAllocation;
 
                 if (_round.roundType == RoundType.Liquidity) {
-                    _c.totalLiquidityAllocation += _tokensCostAssets;
-                    _c.remainingAssets = _subZero(_c.remainingAssets, _tokensCostAssets);
+                    _c.totalLiquidityAllocation += _costAssets;
+                    _c.remainingAssets = _subZero(_c.remainingAssets, _costAssets);
                 }
 
-                emit Purchase(receipt.id, _c.currentIndex, _tokensCostAssets, _c.userAllocation);
+                emit Purchase(receipt.id, _c.currentIndex, _costAssets, _c.userAllocation);
             }
 
             // if we have used everything then lets increment current index. and only increment if we are not on the last round.
@@ -306,8 +296,9 @@ contract Presale is IPresale, Ownable2Step {
         return _subZero(round_.tokenAllocation, _roundTotalAllocated);
     }
 
-    function _calculateUserAllocation(uint256 assetAmount, RoundConfig memory round_) private pure returns (uint256) {
-        return assetsToTokens(round_.roundType == RoundType.Liquidity ? assetAmount / 2 : assetAmount, round_.tokenPrice);
+    function _calculateUserAllocation(uint256 amountAsset, RoundConfig memory round_) private pure returns (uint256) {
+        return
+            assetsToTokens(round_.roundType == RoundType.Liquidity ? amountAsset / 2 : amountAsset, round_.tokenPrice);
     }
 
     function _subZero(uint256 a, uint256 b) private pure returns (uint256) {
@@ -317,7 +308,7 @@ contract Presale is IPresale, Ownable2Step {
     }
 
     function _close() private {
-        require(!$closed, 'PRESALE_ALREADY_CLOSED');
+        require(!$closed, "PRESALE_ALREADY_CLOSED");
         $closed = true;
         emit Close();
     }
