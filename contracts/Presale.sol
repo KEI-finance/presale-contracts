@@ -170,7 +170,7 @@ contract Presale is IPresale, Ownable2Step {
         _c.userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
 
         require(block.timestamp >= _config.startDate, "PRESALE_NOT_STARTED");
-        require(!$closed, "PRESALE_ENDED");
+        require(!$closed, "PRESALE_CLOSED");
         require(
             purchaseConfig.amountAsset >= _config.minDepositAmount || _config.minDepositAmount == 0,
             "MIN_DEPOSIT_AMOUNT"

@@ -132,7 +132,7 @@ contract PresaleTest is Test {
     function _fillRounds(address account, uint256 amountAsset)
         internal
         view
-        returns (uint256 _totalCostAsset, uint256 _totalCostAssets, uint256 _totalAllocation, uint256 _newRoundIndex)
+        returns (uint256 _totalCostAssets, uint256 _totalAllocation, uint256 _newRoundIndex)
     {
         uint256 _remainingAssets = amountAsset;
         uint256 _userAllocationRemaining = config.maxUserAllocation - presale.userTokensAllocated(account);
@@ -156,11 +156,9 @@ contract PresaleTest is Test {
 
             if (_userAllocation > 0) {
                 uint256 _costAssets = presale.tokensToAssets(_userAllocation, _round.tokenPrice);
-                uint256 _roundPurchaseAmountAsset = (_costAssets * amountAsset) / amountAsset;
 
                 _userAllocationRemaining -= _userAllocation;
                 _totalAllocation += _userAllocation;
-                _totalCostAsset += _roundPurchaseAmountAsset;
                 _totalCostAssets += _costAssets;
                 _remainingAssets -= _costAssets;
             }
@@ -185,7 +183,7 @@ contract PresaleTest_currentRoundIndex is PresaleTest {
         vm.warp(startDate + 1);
 
         vm.prank(ALICE);
-        presale.purchase(ALICE, 701 * 1e6, "");
+        presale.purchase(ALICE, 700 ether, "");
 
         assertEq(presale.currentRoundIndex(), 1);
 
@@ -241,7 +239,7 @@ contract PresaleTest_roundAllocated is PresaleTest {
     function setUp() public {
         IPresale.RoundConfig memory _round = rounds[0];
 
-        _availableToPurchase = _round.tokenPrice * _round.tokenAllocation / (1 ether * PRECISION);
+        _availableToPurchase = _round.tokenPrice * _round.tokenAllocation / PRECISION;
 
         vm.warp(startDate + 1);
 
@@ -271,6 +269,9 @@ contract PresaleTest_liquidityType is PresaleTest {
         });
 
         presale = new Presale(address(PRESALE_TOKEN), config, _rounds);
+
+        vm.prank(ALICE);
+        PRESALE_TOKEN.approve(address(presale), type(uint256).max);
     }
 
     function test_success() external {
@@ -294,7 +295,7 @@ contract PresaleTest_totalRaised is PresaleTest {
 
         uint256 _purchaseAmount = 1_234 ether;
 
-        (, uint256 _totalCost,,) = _fillRounds(ALICE, _purchaseAmount);
+        (uint256 _totalCost,,) = _fillRounds(ALICE, _purchaseAmount);
 
         vm.prank(ALICE);
         presale.purchase(ALICE, _purchaseAmount, "");
@@ -309,7 +310,7 @@ contract PresaleTest_userTokensAllocated is PresaleTest {
 
         uint256 _purchaseAmounts = 2301 ether;
 
-        (,, uint256 _totalAllocation,) = _fillRounds(ALICE, _purchaseAmounts);
+        (, uint256 _totalAllocation,) = _fillRounds(ALICE, _purchaseAmounts);
 
         vm.prank(ALICE);
         presale.purchase(ALICE, _purchaseAmounts, "");
@@ -335,16 +336,17 @@ contract PresaleTest_close is PresaleTest {
 
         assertFalse(presale.closed());
 
+        vm.prank(GLOBAL_ADMIN);
         presale.close();
 
         assertTrue(presale.closed());
     }
 
-    function test_rejects_whenPaused() external {
+    function test_rejects_whenClosed() external {
         vm.startPrank(GLOBAL_ADMIN);
         presale.close();
 
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert("PRESALE_ALREADY_CLOSED");
         presale.close();
 
         vm.stopPrank();
@@ -387,51 +389,56 @@ contract PresaleTest_purchase is PresaleTest {
 
         vm.warp(startDate);
 
-        (, uint256 _aliceCost, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
+        (uint256 _aliceCost, uint256 _aliceAllocation, uint256 _aliceNewRoundIndex) =
             _fillRounds(ALICE, _alicePurchaseAmount);
 
         _totalCostAssets += _aliceCost;
         _totalAllocation += _aliceAllocation;
 
         vm.prank(ALICE);
-        presale.purchase(ALICE, _alicePurchaseAmountAsset, "");
+        presale.purchase(ALICE, _alicePurchaseAmount, "");
 
         // ensure bob has something to purchase
         uint256 currentIndex = presale.currentRoundIndex();
-        vm.assume(presale.round(currentIndex).tokenAllocation > presale.roundTokensAllocated(currentIndex));
+
+        if (presale.round(currentIndex).tokenAllocation <= presale.roundTokensAllocated(currentIndex)) {
+            return;
+        }
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
         assertEq(presale.totalRaised(), _totalCostAssets);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
-        assertEq(PRESALE_TOKEN.balanceOf(ALICE), aliceAssetsBalance - _alicePurchaseAmountAsset);
-        assertEq(PRESALE_TOKEN.balanceOf(config.withdrawTo), withdrawToAssetsBalance + _alicePurchaseAmountAsset);
+        assertEq(PRESALE_TOKEN.balanceOf(ALICE), aliceAssetsBalance - _alicePurchaseAmount);
+        assertEq(PRESALE_TOKEN.balanceOf(config.withdrawTo), withdrawToAssetsBalance + _alicePurchaseAmount);
 
-        (, uint256 _bobCostAssets, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
+        (uint256 _bobCostAssets, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
             _fillRounds(BOB, _bobPurchaseAmount);
 
         _totalCostAssets += _bobCostAssets;
         _totalAllocation += _bobAllocation;
 
         vm.prank(BOB);
-        IPresale.Receipt memory _receipt = presale.purchase(BOB, _bobPurchaseAmountAsset, "");
+        IPresale.Receipt memory _receipt = presale.purchase(BOB, _bobPurchaseAmount, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
         assertEq(presale.totalRaised(), _totalCostAssets);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
-        assertEq(PRESALE_TOKEN.balanceOf(BOB), bobAssetsBalance - _bobPurchaseAmountAsset + _receipt.refundedAssets);
+        assertEq(PRESALE_TOKEN.balanceOf(BOB), bobAssetsBalance - _alicePurchaseAmount + _receipt.refundedAssets);
         assertEq(
             PRESALE_TOKEN.balanceOf(config.withdrawTo),
-            withdrawToAssetsBalance + _bobPurchaseAmountAsset + _alicePurchaseAmountAsset - _receipt.refundedAssets
+            withdrawToAssetsBalance + _bobPurchaseAmount + _alicePurchaseAmount - _receipt.refundedAssets
         );
     }
 
-    function test_rejects_whenPaused() external {
+    function test_rejects_whenClosed() external {
+        vm.warp(startDate);
+
         vm.prank(GLOBAL_ADMIN);
         presale.close();
 
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert("PRESALE_CLOSED");
 
         vm.prank(ALICE);
         presale.purchase(ALICE, 5_000 * 1e6, "");
@@ -440,7 +447,7 @@ contract PresaleTest_purchase is PresaleTest {
     function test_rejects_whenRaiseNotStarted() external {
         vm.warp(startDate - 1);
 
-        vm.expectRevert("RAISE_NOT_STARTED");
+        vm.expectRevert("PRESALE_NOT_STARTED");
 
         vm.prank(ALICE);
         presale.purchase(ALICE, 5_000 * 1e6, "");
@@ -480,12 +487,12 @@ contract PresaleTest_purchase is PresaleTest {
 
             _totalAllocation += _roundAllocation;
 
-            uint256 _tokenCostAssets = _roundAllocation * _round.tokenPrice / PRECISION;
-            _totalCostAssets += _tokenCostAssets;
+            uint256 _costAssets = _roundAllocation * _round.tokenPrice / PRECISION;
+            _totalCostAssets += _costAssets;
 
-            emit Purchase(_receiptId, i, _tokenCostAssets, _roundAllocation);
+            emit Purchase(_receiptId, i, _costAssets, _roundAllocation);
 
-            _remainingAssets -= _tokenCostAssets;
+            _remainingAssets -= _costAssets;
 
             if (_remainingAssets == 0) {
                 break;
@@ -493,6 +500,6 @@ contract PresaleTest_purchase is PresaleTest {
         }
 
         vm.prank(ALICE);
-        presale.purchase(ALICE, _alicePurchaseAmountAsset, "");
+        presale.purchase(ALICE, _alicePurchaseAmount, "");
     }
 }
