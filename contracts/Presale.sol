@@ -33,6 +33,8 @@ contract Presale is IPresale, Ownable2Step {
     mapping(address => uint256) private $userLiquidityAllocated;
 
     constructor(address presaleAsset, PresaleConfig memory newConfig, RoundConfig[] memory newRounds) {
+        require(Address.isContract(presaleAsset), "INVALID_PRESALE_ASSET");
+
         PRESALE_ASSET = presaleAsset;
 
         _setConfig(newConfig);
@@ -169,6 +171,7 @@ contract Presale is IPresale, Ownable2Step {
         _c.remainingAssets = purchaseConfig.amountAsset;
         _c.userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
 
+        require(purchaseConfig.account != address(0), "INVALID_ACCOUNT");
         require(block.timestamp >= _config.startDate, "PRESALE_NOT_STARTED");
         require(!$closed, "PRESALE_CLOSED");
         require(
@@ -261,24 +264,26 @@ contract Presale is IPresale, Ownable2Step {
     }
 
     function _setRounds(RoundConfig[] memory newRounds) private {
-        uint256 _totalRounds = $rounds.length;
-        for (uint256 i; i < newRounds.length; ++i) {
-            if (
-                i >= _totalRounds || $roundTokensAllocated[i] < newRounds[i].tokenAllocation
-                    || i == newRounds.length - 1
-            ) {
-                emit RoundsUpdate($rounds, newRounds, $currentRoundIndex, i, _msgSender());
-                $currentRoundIndex = i;
-                break;
+        unchecked {
+            uint256 _totalRounds = $rounds.length;
+            for (uint256 i; i < newRounds.length; ++i) {
+                if (
+                    i >= _totalRounds || $roundTokensAllocated[i] < newRounds[i].tokenAllocation
+                        || i == newRounds.length - 1
+                ) {
+                    emit RoundsUpdate($rounds, newRounds, $currentRoundIndex, i, _msgSender());
+                    $currentRoundIndex = i;
+                    break;
+                }
             }
-        }
 
-        for (uint256 i; i < _totalRounds; i++) {
-            $rounds.pop();
-        }
+            for (uint256 i; i < _totalRounds; i++) {
+                $rounds.pop();
+            }
 
-        for (uint256 i; i < newRounds.length; ++i) {
-            $rounds.push(newRounds[i]);
+            for (uint256 i; i < newRounds.length; ++i) {
+                $rounds.push(newRounds[i]);
+            }
         }
     }
 
