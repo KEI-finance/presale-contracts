@@ -160,7 +160,7 @@ contract PresaleTest is Test {
             uint256 _roundAllocationRemaining =
                 _roundTotalAllocated < _round.tokenAllocation ? _round.tokenAllocation - _roundTotalAllocated : 0;
 
-            uint256 _userAllocation = presale.usdToTokens(_remainingUSD, _round.tokenPrice);
+            uint256 _userAllocation = presale.assetToTokens(_remainingUSD, _round.tokenPrice);
 
             if (_userAllocation > _roundAllocationRemaining) {
                 _userAllocation = _roundAllocationRemaining;
@@ -170,7 +170,7 @@ contract PresaleTest is Test {
             }
 
             if (_userAllocation > 0) {
-                uint256 _tokensCostUSD = presale.tokensToUSD(_userAllocation, _round.tokenPrice);
+                uint256 _tokensCostUSD = presale.tokensToAsset(_userAllocation, _round.tokenPrice);
                 uint256 _roundPurchaseAmountAsset = (_tokensCostUSD * amountAsset) / amountUSD;
 
                 _userAllocationRemaining -= _userAllocation;
@@ -299,10 +299,10 @@ contract PresaleTest_liquidityType is PresaleTest {
         vm.prank(ALICE);
         IPresale.Receipt memory _receipt = presale.purchaseUSDC(ALICE, _alicePurchaseAmountAsset, "");
 
-        assertEq(presale.userUSDAllocated(ALICE), (_alicePurchaseAmountUSD - _receipt.remainingUSD) / 2);
-        assertEq(presale.userUSDAllocated(ALICE), _receipt.usdAllocated);
+        assertEq(presale.userUSDLiquidity(ALICE), (_alicePurchaseAmountUSD - _receipt.remainingUSD) / 2);
+        assertEq(presale.userUSDLiquidity(ALICE), _receipt.liquidityAssets);
         assertEq(presale.userTokensAllocated(ALICE), _receipt.tokensAllocated);
-        assertEq(_receipt.costUSD, _receipt.usdAllocated * 2);
+        assertEq(_receipt.costUSD, _receipt.liquidityAssets * 2);
     }
 }
 
@@ -318,7 +318,7 @@ contract PresaleTest_totalRaisedUSD is PresaleTest {
         vm.prank(ALICE);
         presale.purchase{value: _purchaseAmountETH}(ALICE, "");
 
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
     }
 }
 
@@ -369,7 +369,7 @@ contract PresaleTest_usdToTokens is PresaleTest {
         IPresale.RoundConfig memory _round = presale.round(0);
         uint256 _usdAmount = 100 * USD_PRECISION;
         uint256 _tokenAmount = _usdAmount * PRECISION / _round.tokenPrice;
-        assertEq(presale.usdToTokens(_usdAmount, _round.tokenPrice), _tokenAmount);
+        assertEq(presale.assetToTokens(_usdAmount, _round.tokenPrice), _tokenAmount);
     }
 }
 
@@ -633,7 +633,7 @@ contract PresaleTest_purchase is PresaleTest {
         vm.assume(presale.round(currentIndex).tokenAllocation > presale.roundTokensAllocated(currentIndex));
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         assertEq(ALICE.balance, aliceEthBalance - (_aliceCostUSD / (presale.ethPrice() / PRECISION)));
@@ -652,7 +652,7 @@ contract PresaleTest_purchase is PresaleTest {
         presale.purchase{value: _bobPurchaseAmountETH}(BOB, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
         assertEq(BOB.balance, bobEthBalance - (_bobCostUSD / (presale.ethPrice() / PRECISION)));
@@ -777,7 +777,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         }
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         assertEq(ALICE.balance, aliceEthBalance + (_alicePurchaseAmountETH - _aliceCostAsset));
@@ -794,7 +794,7 @@ contract PresaleTest_purchaseForAccount is PresaleTest {
         presale.purchase{value: _bobPurchaseAmountETH}(BOB, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
         assertEq(BOB.balance, bobEthBalance + (_bobPurchaseAmountETH - _bobCostAsset));
@@ -916,7 +916,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         vm.assume(presale.round(currentIndex).tokenAllocation > presale.roundTokensAllocated(currentIndex));
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         assertEq(USDC.balanceOf(ALICE), aliceUsdcBalance - _alicePurchaseAmountAsset);
@@ -932,7 +932,7 @@ contract PresaleTest_purchaseUSDC is PresaleTest {
         IPresale.Receipt memory _receipt = presale.purchaseUSDC(BOB, _bobPurchaseAmountAsset, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
         assertEq(USDC.balanceOf(BOB), bobUsdcBalance - _bobPurchaseAmountAsset + _receipt.refundedAssets);
@@ -1055,7 +1055,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         }
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         assertEq(DAI.balanceOf(ALICE), aliceDaiBalance - _aliceCostUSD);
@@ -1071,7 +1071,7 @@ contract PresaleTest_purchaseDAI is PresaleTest {
         presale.purchaseDAI(BOB, _bobPurchaseAmountAsset, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
 
         assertEq(DAI.balanceOf(BOB), bobDaiBalance - _bobCostUSD);
@@ -1195,7 +1195,7 @@ contract PresaleTest_allocate is PresaleTest {
         }
 
         assertEq(presale.currentRoundIndex(), _aliceNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(ALICE), _aliceAllocation);
 
         (, uint256 _bobCostUSD, uint256 _bobAllocation, uint256 _bobNewRoundIndex) =
@@ -1208,7 +1208,7 @@ contract PresaleTest_allocate is PresaleTest {
         presale.allocate(BOB, _bobAllocationAmountUSD, "");
 
         assertEq(presale.currentRoundIndex(), _bobNewRoundIndex);
-        assertEq(presale.totalRaisedUSD(), _totalCostUSD);
+        assertEq(presale.totalRaised(), _totalCostUSD);
         assertEq(presale.userTokensAllocated(BOB), _bobAllocation);
     }
 
