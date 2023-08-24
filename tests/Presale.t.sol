@@ -6,8 +6,7 @@ import "forge-std/Test.sol";
 
 import "contracts/PreSale.sol";
 
-import "../mocks/TestERC20.sol";
-import "../mocks/MockV3Aggregator.sol";
+import "./mocks/TestERC20.sol";
 
 contract PresaleTest is Test {
     Presale internal presale;
