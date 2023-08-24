@@ -39,7 +39,7 @@ export const rounds: IPresale.RoundConfigStruct[] = [
   },
   {
     tokenPrice: makePrice(0.1),
-    tokenAllocation: makeTokens(6e6),
+    tokenAllocation: makeTokens(12e6),
     roundType: RoundType.Liquidity,
   },
 ];

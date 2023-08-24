@@ -2,13 +2,9 @@
 
 pragma solidity =0.8.9;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./IPresale.sol";
@@ -16,7 +12,7 @@ import "./IPresale.sol";
 /**
  * @notice Implementation of the {IPresale} interface.
  */
-contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
+contract Presale is IPresale, Ownable2Step {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -152,7 +148,6 @@ contract Presale is IPresale, Ownable2Step, ReentrancyGuard, Pausable {
         public
         payable
         override
-        whenNotPaused
         returns (Receipt memory)
     {
         return _purchase(

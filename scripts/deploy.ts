@@ -1,30 +1,38 @@
 import { Presale__factory } from "../typechain-types";
 import { BigNumber, Signer } from "ethers";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { rounds } from "../config";
 
 async function main() {
   const [signer] = await ethers.getSigners();
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
 
-  // goerli configuration
-  const presale = await presaleFactory.deploy(
-    "0x48731cF7e84dc94C5f84577882c14Be11a5B7456",
-    "0x3829018f5c984b2b7cf8382704da7329d4c27da4",
-    "0x73967c6a0904aA032C103b4104747E88c566B1A2",
+  const args: Parameters<Presale__factory["deploy"]> = [
+    "0x6DAd753739Ef6a20bbBcA2BEc6E11C8047517078",
     {
       minDepositAmount: 0,
       maxUserAllocation: BigNumber.from(10).pow(14),
-      endDate: Math.round(new Date("11/01/2023").getTime() / 1000),
-      startDate: Math.round(new Date("08/01/2023").getTime() / 1000),
+      startDate: Math.round(Date.now() / 1000) + 60,
       withdrawTo: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3",
     },
-    rounds
-  );
+    rounds,
+  ];
+
+  // goerli configuration
+  const presale = await presaleFactory.deploy(...args);
 
   console.log(`Deployed to ${presale.address}`);
 
   await presale.deployed();
+
+  await new Promise((res) => setTimeout(res, 30000));
+
+  console.log("verifying");
+
+  await hre.run("verify:verify", {
+    address: presale.address,
+    constructorArguments: args,
+  });
 
   console.log("completed");
 }
