@@ -45,7 +45,12 @@ contract Presale is IPresale, Ownable2Step, Initializable {
     /**
      * @inheritdoc IPresale
      */
-    function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds) external override onlyOwner initializer {
+    function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds)
+        external
+        override
+        onlyOwner
+        initializer
+    {
         _setWithdrawTo(newWithdrawTo);
         _setConfig(newConfig);
         _setRounds(newRounds);
@@ -68,7 +73,7 @@ contract Presale is IPresale, Ownable2Step, Initializable {
     /**
      * @inheritdoc IPresale
      */
-    function purchase(PurchaseConfig memory purchaseConfig) external override returns (Receipt memory receipt) {
+    function purchase(PurchaseConfig calldata purchaseConfig) external override returns (Receipt memory receipt) {
         require(purchaseConfig.account != address(0), "INVALID_ACCOUNT");
         require(purchaseConfig.amountAsset > 0, "INVALID_AMOUNT");
 
@@ -138,7 +143,7 @@ contract Presale is IPresale, Ownable2Step, Initializable {
         // edge case to prevent the user from getting free tokens
         require(
             receipt.refundedAssets == 0 || receipt.tokensAllocated == 0
-            || receipt.refundedAssets != purchaseConfig.amountAsset,
+                || receipt.refundedAssets != purchaseConfig.amountAsset,
             "INVALID_PURCHASE"
         );
 

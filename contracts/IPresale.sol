@@ -92,12 +92,10 @@ interface IPresale {
      * @notice Purchase Configuration structure.
      * @param amountAsset The amount of the asset the user intends to spend.
      * @param account The account that will be be allocated tokens.
-     * @param data Additional bytes data tied to the purchase.
      */
     struct PurchaseConfig {
         uint256 amountAsset;
         address account;
-        bytes data;
     }
 
     /**
@@ -113,7 +111,6 @@ interface IPresale {
         uint256 refundedAssets;
         uint256 costAssets;
     }
-
 
     struct PurchaseCache {
         uint256 totalTokenAllocation;
@@ -247,5 +244,6 @@ interface IPresale {
      * @param newConfig the presale configuration
      * @param newRounds the round configuration for the presale
      */
-    function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds) external;
+    function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds)
+        external;
 }
