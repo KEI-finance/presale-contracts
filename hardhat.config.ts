@@ -7,7 +7,7 @@ import "hardhat-package";
 import process from "process";
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.9",
+  solidity: "0.8.19",
   networks: {
     goerli: {
       url: "https://goerli.infura.io/v3/" + process.env.INFURA_API_KEY,
