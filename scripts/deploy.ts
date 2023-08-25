@@ -8,7 +8,7 @@ async function main() {
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
 
   const args: Parameters<Presale__factory["deploy"]> = [
-    "0x6DAd753739Ef6a20bbBcA2BEc6E11C8047517078",
+    "0x2039f3B58ed4a8EDe1B6C8f43aC4c3DEe3187f7b",
     {
       minDepositAmount: 0,
       maxUserAllocation: BigNumber.from(10).pow(14),
