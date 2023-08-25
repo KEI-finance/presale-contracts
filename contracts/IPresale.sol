@@ -2,10 +2,12 @@
 
 pragma solidity >=0.8.0;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /**
  * @title KEI Finance Presale Contract.
  * @author KEI Finance
- * @notice A fund raising contract for liquidity pools or initial token offering.
+ * @notice A fund raising contract for initial token offering.
  */
 interface IPresale {
     /**
@@ -15,6 +17,14 @@ interface IPresale {
      * @param sender The message sender that triggered the event.
      */
     event ConfigUpdate(PresaleConfig prevConfig, PresaleConfig newConfig, address indexed sender);
+
+    /**
+     * @notice Emitted when the withdrawTo value is updated.
+     * @param prevValue The previous withdrawTo address
+     * @param newValue The new withdrawTo address
+     * @param sender The message sender that triggered the event.
+     */
+    event WithdrawToUpdate(address prevValue, address newValue, address indexed sender);
 
     /**
      * @notice Emitted when the {RoundConfig} array is updated.
@@ -56,26 +66,15 @@ interface IPresale {
     event PurchaseReceipt(uint256 indexed id, PurchaseConfig purchase, Receipt receipt, address indexed sender);
 
     /**
-     * @notice Round type - either for liquidity pool provision or for initial token issuance.
-     */
-    enum RoundType {
-        Liquidity,
-        Tokens
-    }
-
-    /**
      * @notice Presale Configuration structure.
      * @param minDepositAmount The minimum amount of assets to purchase with.
      * @param maxUserAllocation The maximum number of tokens a user can purchase across all rounds.
      * @param startDate The unix timestamp marking the start of the presale.
-     * @param endDate The unix timestamp marking the end of the presale.
-     * @param withdrawTo The address that immediately receives all funds on each purchase.
      */
     struct PresaleConfig {
         uint128 minDepositAmount;
         uint128 maxUserAllocation;
         uint48 startDate;
-        address withdrawTo;
     }
 
     /**
@@ -85,9 +84,8 @@ interface IPresale {
      * @param roundType The type of the round.
      */
     struct RoundConfig {
-        uint256 tokenPrice;
-        uint256 tokenAllocation;
-        RoundType roundType;
+        uint128 tokenPrice;
+        uint128 tokenAllocation;
     }
 
     /**
@@ -108,20 +106,35 @@ interface IPresale {
      * @param tokensAllocated The number of tokens allocated.
      * @param refundedAssets The number of tokens refunded.
      * @param costAssets The number of assets spent.
-     * @param allocatedAssets The number of assets allocated to liquidity.
      */
     struct Receipt {
         uint256 id;
         uint256 tokensAllocated;
         uint256 refundedAssets;
         uint256 costAssets;
-        uint256 liquidityAssets;
+    }
+
+
+    struct PurchaseCache {
+        uint256 totalTokenAllocation;
+        uint256 totalLiquidityAllocation;
+        uint256 totalRounds;
+        uint256 remainingAssets;
+        uint256 userAllocationRemaining;
+        uint256 currentIndex;
+        uint256 roundAllocationRemaining;
+        uint256 userAllocation;
     }
 
     /**
      * @notice The PRESALE_ASSET used for purchasing the KEI tokens
      */
-    function PRESALE_ASSET() external view returns (address);
+    function PRESALE_ASSET() external view returns (IERC20);
+
+    /**
+     * @notice The token which will be received when making a purchase
+     */
+    function PRESALE_TOKEN() external view returns (IERC20);
 
     /**
      * @notice The 8 decimal precision used in the contract.
@@ -182,12 +195,6 @@ interface IPresale {
     function userTokensAllocated(address account) external view returns (uint256);
 
     /**
-     * @notice Returns the amount of PRESALE_ASSETs a user has allocated to liquidity provision balance of a user across all `Liquidity` type rounds.
-     * @param account The account to query
-     */
-    function userLiquidityAllocated(address account) external view returns (uint256);
-
-    /**
      * @notice Returns the conversion from assets to tokens. Where assets is the PRESALE_ASSET
      * @param amount The amount of assets to convert.
      * @param price The price of tokens - based on the current round price set by admin.
@@ -212,20 +219,33 @@ interface IPresale {
     function close() external;
 
     /**
-     * @notice Purchases tokens for `account` or increases a user's liquidity provision balance, by spending DAI - depending on the round type.
-     * @param account The account to be allocated the purchased tokens or increased liquidity provision balance.
-     * @param amountAsset The amount of assets intended to be spent.
-     * @param data Additional bytes data tied to the purchase.
+     * @notice Updates where the presale tokens will be sent
+     * @param newWithdrawTo The new withdraw to address
+     * @custom:emits WithdrawToUpdate
+     * @custom:requirement The function caller must be the owner of the contract.
+     */
+    function setWithdrawTo(address newWithdrawTo) external;
+
+    /**
+     * @notice Purchases tokens for `account`, by spending PRESALE_ASSETs
+     * @param purchaseConfig The details for the purchase
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
-     * @custom:requirement The contract must not be paused.
+     * @custom:requirement The contract must not be ended.
      * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
-     * @custom:requirement The current block timestamp must be less than or equal to the presale configuration `endDate`.
      * @custom:requirement The asset value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
      * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
      * intended purchase asset amount.
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
      */
-    function purchase(address account, uint256 amountAsset, bytes calldata data) external returns (Receipt memory);
+    function purchase(PurchaseConfig calldata purchaseConfig) external returns (Receipt memory);
+
+    /**
+     * @notice Initializes the presale contract with the given configurations
+     * @param newWithdrawTo where the asset will be transferred to on purchase
+     * @param newConfig the presale configuration
+     * @param newRounds the round configuration for the presale
+     */
+    function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds) external;
 }
