@@ -7,13 +7,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./IPresale.sol";
 
 /**
  * @notice Implementation of the {IPresale} interface.
  */
-contract Presale is IPresale, Ownable2Step, Initializable {
+contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -34,12 +35,14 @@ contract Presale is IPresale, Ownable2Step, Initializable {
     mapping(uint256 => uint256) private $roundTokensAllocated;
     mapping(address => uint256) private $userTokensAllocated;
 
-    constructor(IERC20 presaleAsset, IERC20 presaleToken) {
+    constructor(IERC20 presaleAsset, IERC20 presaleToken, address newOwner) {
         require(Address.isContract(address(presaleAsset)), "INVALID_PRESALE_ASSET");
         require(Address.isContract(address(presaleToken)), "INVALID_PRESALE_TOKEN");
 
         PRESALE_ASSET = presaleAsset;
         PRESALE_TOKEN = presaleToken;
+
+        _transferOwnership(newOwner);
     }
 
     /**
@@ -73,7 +76,12 @@ contract Presale is IPresale, Ownable2Step, Initializable {
     /**
      * @inheritdoc IPresale
      */
-    function purchase(PurchaseConfig calldata purchaseConfig) external override returns (Receipt memory receipt) {
+    function purchase(PurchaseConfig calldata purchaseConfig)
+        external
+        override
+        nonReentrant
+        returns (Receipt memory receipt)
+    {
         require(purchaseConfig.account != address(0), "INVALID_ACCOUNT");
         require(purchaseConfig.amountAsset > 0, "INVALID_AMOUNT");
 

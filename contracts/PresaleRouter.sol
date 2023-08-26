@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol";
 
+import "stargate/IStargateRouter.sol";
+
 import "./IPresale.sol";
 
 /**
@@ -17,39 +19,72 @@ contract PresaleRouter {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
-    event PurchaseOutcome(
-        bool success, ISwapRouter.ExactInputParams params, IPresale.Receipt receipt, address indexed sender
-    );
+    uint256 public constant STARGATE_USDT_POOL_ID = 2;
 
     IPresale public immutable PRESALE;
     IERC20 public immutable PRESALE_ASSET;
     ISwapRouter public immutable SWAP_ROUTER;
-    address public immutable WETH9;
+    IStargateRouter public immutable STARGATE_ROUTER;
 
-    constructor(IPresale presale, ISwapRouter swapRouter) {
+    address public immutable WETH9;
+    uint16 public immutable CHAIN_ID;
+    uint16 public immutable PRESALE_CHAIN_ID;
+
+    constructor(
+        uint16 chainId,
+        uint16 presaleChainId,
+        IPresale presale,
+        ISwapRouter swapRouter,
+        IStargateRouter stargateRouter
+    ) {
+        CHAIN_ID = chainId;
+        PRESALE_CHAIN_ID = presaleChainId;
+
         PRESALE = presale;
         PRESALE_ASSET = presale.PRESALE_ASSET();
         SWAP_ROUTER = swapRouter;
+        STARGATE_ROUTER = stargateRouter;
         WETH9 = IPeripheryImmutableState(address(swapRouter)).WETH9();
 
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
+        PRESALE_ASSET.approve(address(STARGATE_ROUTER), type(uint256).max);
     }
 
-    function purchase(ISwapRouter.ExactInputParams memory params)
-        external
-        payable
-        returns (bool success, IPresale.Receipt memory receipt)
-    {
-        (address startAsset, address endAsset) = _deconstructPath(params.path);
-        require(endAsset == address(PRESALE_ASSET), "INVALID_PATH");
-
+    function purchase(ISwapRouter.ExactInputParams memory params) external payable {
         IPresale.PurchaseConfig memory config;
-
         config.account = params.recipient;
-        // we need to receive the endAsset so that we can do the presale purchase
-        params.recipient = address(this);
-        // by default we will assume success unless an error happens
-        success = true;
+
+        // if there is no path we can assume that they are using the token directly
+        if (params.path.length > 0) {
+            // we need to receive the endAsset so that we can do the presale purchase
+            params.recipient = address(this);
+            config.amountAsset = _swap(params);
+        } else {
+            // we need to transfer to this contract so we can purchase
+            PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), params.amountIn);
+            config.amountAsset = params.amountIn;
+        }
+
+        if (CHAIN_ID == PRESALE_CHAIN_ID) {
+            PRESALE.purchase(config);
+        } else {
+            STARGATE_ROUTER.swap(
+                PRESALE_CHAIN_ID,
+                STARGATE_USDT_POOL_ID,
+                STARGATE_USDT_POOL_ID,
+                payable(config.account),
+                config.amountAsset,
+                config.amountAsset,
+                IStargateRouter.lzTxObj(0, 0, "0x"),
+                abi.encodePacked(PRESALE),
+                abi.encodeWithSelector(IPresale.purchase.selector, config)
+            );
+        }
+    }
+
+    function _swap(ISwapRouter.ExactInputParams memory params) private returns (uint256 amountOut) {
+        (address startAsset, address endAsset) = _deconstructPath(params.path);
+        require(endAsset == address(PRESALE_ASSET), "INVALID_SWAP_PATH");
 
         // if it is not the weth contract or there is no msg value then we must assume it is a token
         if (startAsset != WETH9 || address(this).balance == 0) {
@@ -58,35 +93,7 @@ contract PresaleRouter {
         }
 
         // attempt to swap any assets
-        try SWAP_ROUTER.exactInput{value: msg.value}(params) returns (uint256 _amountOut) {
-            config.amountAsset = _amountOut;
-        } catch (bytes memory) {
-            success = false;
-        }
-
-        if (success) {
-            // then lets try and do the presale purchase
-            try PRESALE.purchase(config) returns (IPresale.Receipt memory _receipt) {
-                receipt = _receipt;
-            } catch (bytes memory) {
-                success = false;
-            }
-
-            if (!success) {
-                // then lets just send them the converted asset instead
-                PRESALE_ASSET.safeTransfer(config.account, config.amountAsset);
-            }
-        } else {
-            if (address(this).balance > 0) {
-                // refund to the account purchasing if the swap fails (this is to allow for cross chain)
-                payable(config.account).sendValue(msg.value);
-            } else {
-                // refund the amount that was transferred to this contract
-                IERC20(startAsset).safeTransfer(config.account, params.amountIn);
-            }
-        }
-
-        emit PurchaseOutcome(success, params, receipt, msg.sender);
+        return SWAP_ROUTER.exactInput{value: msg.value}(params);
     }
 
     function _deconstructPath(bytes memory path) private pure returns (address firstAddress, address lastAddress) {
