@@ -140,34 +140,25 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
             }
 
             // if we have used everything then lets increment current index. and only increment if we are not on the last round.
-            if (_c.userAllocation == _c.roundAllocationRemaining) {
-                if (_c.currentIndex < _c.totalRounds - 1) {
-                    _c.currentIndex++;
-                } else {
-                    _close();
-                }
+            if (_c.userAllocation == _c.roundAllocationRemaining && _c.currentIndex < _c.totalRounds - 1) {
+                _c.currentIndex++;
             } else {
                 break;
             }
-        }
-
-        unchecked {
-            $totalRaised += assetAmount - _c.remainingAssets;
-            $currentRoundIndex = _c.currentIndex;
-            $userTokensAllocated[account] = _config.maxUserAllocation - _c.userAllocationRemaining;
         }
 
         receipt.refundedAssets = _c.remainingAssets;
         receipt.tokensAllocated = _c.totalTokenAllocation;
         receipt.costAssets = assetAmount - receipt.refundedAssets;
 
-        if (receipt.tokensAllocated == 0) {
-            revert PresaleInsufficientAllocation(receipt.tokensAllocated, 1);
+        unchecked {
+            $totalRaised += receipt.costAssets;
+            $currentRoundIndex = _c.currentIndex;
+            $userTokensAllocated[account] = _config.maxUserAllocation - _c.userAllocationRemaining;
         }
 
-        // edge case to prevent the user from getting free tokens
-        if (receipt.tokensAllocated > 0 && receipt.costAssets == 0) {
-            revert PresaleInvalidPurchase(account, assetAmount, receipt);
+        if (receipt.tokensAllocated == 0) {
+            revert PresaleInsufficientAllocation(receipt.tokensAllocated, 1);
         }
 
         if (receipt.refundedAssets > 0) {
@@ -176,6 +167,13 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
 
         if (receipt.costAssets > 0) {
             _sendAssets($withdrawTo, receipt.costAssets);
+        }
+
+        PRESALE_TOKEN.safeTransfer(account, receipt.tokensAllocated);
+
+        // if all the tokens have been purchased then close the presale
+        if (_c.roundAllocationRemaining == _c.userAllocation && _c.currentIndex == _c.totalRounds - 1) {
+            _close();
         }
 
         emit PurchaseReceipt(receipt.id, account, assetAmount, receipt, _msgSender());

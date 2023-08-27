@@ -24,8 +24,11 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
     Presale public presale;
     PresaleRouter public presaleRouter;
 
-    IPresale.PresaleConfig public presaleConfig =
-        IPresale.PresaleConfig({minDepositAmount: 0, maxUserAllocation: 1e6, startDate: uint48(block.timestamp + 60)});
+    IPresale.PresaleConfig public presaleConfig = IPresale.PresaleConfig({
+        minDepositAmount: _fmtAsset(0),
+        maxUserAllocation: _fmtToken(1e6),
+        startDate: uint48(block.timestamp + 60)
+    });
 
     IPresale.RoundConfig[] public rounds;
 
@@ -38,11 +41,11 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
         rounds.push(_createRoundConfig(90, 8e6));
         rounds.push(_createRoundConfig(95, 8e6));
         rounds.push(_createRoundConfig(100, 12e6));
-
-        _createContracts();
     }
 
     function setUp() public virtual {
+        _createContracts();
+
         vm.label(address(presaleAsset), "USDT");
 
         vm.warp(presaleConfig.startDate - 1);
@@ -87,14 +90,19 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
     function _remainingAssetAllocation(uint256 _maxRounds) internal view returns (uint256 remainingAssetAllocation) {
         uint256 totalRounds = presale.totalRounds();
         for (uint256 i = presale.currentRoundIndex(); i < totalRounds && i < _maxRounds; i++) {
-            remainingAssetAllocation = _remainingRoundAssetAllocation(i);
+            remainingAssetAllocation += _remainingRoundAssetAllocation(i);
         }
     }
 
-    function _remainingRoundAssetAllocation(uint256 roundIndex) internal view returns (uint256 remainingAssetAllocation) {
+    function _remainingRoundAssetAllocation(uint256 roundIndex)
+        internal
+        view
+        returns (uint256 remainingAssetAllocation)
+    {
         uint256 tokensAllocated = presale.roundTokensAllocated(roundIndex);
         IPresale.RoundConfig memory round = presale.round(roundIndex);
-        remainingAssetAllocation += round.allocation > tokensAllocated ? round.allocation  - tokensAllocated : 0;
+        uint256 remainingTokens = round.allocation > tokensAllocated ? round.allocation - tokensAllocated : 0;
+        remainingAssetAllocation += presale.tokensToAssets(remainingTokens, round.price);
     }
 
     function _createRoundConfig(uint256 price, uint256 tokenAllocation)
@@ -116,7 +124,7 @@ contract PresaleTest__initialize is PresaleTest {
     event RoundsUpdate(IPresale.RoundConfig[] newRounds, address indexed sender);
 
     function setUp() public virtual override {
-        // cancel initialization
+        _createContracts();
     }
 
     function test_success() external {
@@ -279,7 +287,19 @@ contract PresaleTest__setWithdrawTo is PresaleTest {
 }
 
 contract PresaleTest__purchase is PresaleTest {
-    function setUp() public override virtual {
+    event Close();
+    event PurchaseReceipt(
+        uint256 indexed id, address indexed account, uint256 assetAmount, Receipt receipt, address indexed sender
+    );
+    event Purchase(
+        uint256 indexed receiptId,
+        uint256 indexed roundIndex,
+        address indexed account,
+        uint256 assetAmount,
+        uint256 tokensAllocated
+    );
+
+    function setUp() public virtual override {
         super.setUp();
 
         vm.warp(presaleConfig.startDate);
@@ -287,17 +307,45 @@ contract PresaleTest__purchase is PresaleTest {
         presaleAsset.approve(address(presale), type(uint256).max);
     }
 
-    function test_success(address account, uint128 assetAmount) external {
-        uint256 price = presale.round(0).price;
-        vm.assume(presale.assetsToTokens(assetAmount, price) > 0 && account != address(0));
+    function test_success(address[3] calldata accounts, address[3] calldata senders, uint128[3] calldata assetAmounts) external {
+        bool runsAtLeastOnce = false;
 
-        presaleAsset.mint(ALICE, assetAmount);
-        vm.prank(ALICE);
-        IPresale.Receipt memory receipt = presale.purchase(account, assetAmount);
+        for (uint i = 0; i < accounts.length; i++) {
+            uint256 price = presale.round(presale.currentRoundIndex()).price;
 
-        assertEq(presaleToken.balanceOf(account), receipt.tokensAllocated);
-        assertEq(presaleAsset.balanceOf(ALICE), receipt.refundedAssets);
-        assertEq(presaleAsset.balanceOf(WITHDRAW_TO), receipt.costAssets);
+            address sender = senders[i];
+            address account = accounts[i];
+            uint256 assetAmount = assetAmounts[i];
+
+            if (presale.assetsToTokens(assetAmount, price) == 0 || account == address(0) || sender == address(0) || presale.closed()) {
+                continue;
+            }
+
+            runsAtLeastOnce = true;
+
+            vm.label(sender, "sender");
+            vm.label(account, "account");
+
+            uint256 prevAllocation = presale.userTokensAllocated(account);
+            uint256 prevTotalRaised = presale.totalRaised();
+            uint256 prevTokenBalance = presaleToken.balanceOf(account);
+            uint256 prevAssetBalance = presaleAsset.balanceOf(account);
+            uint256 prevWithdrawTo = presaleAsset.balanceOf(WITHDRAW_TO);
+
+            presaleAsset.mint(sender, assetAmount);
+            vm.prank(sender);
+            presaleAsset.approve(address(presale), type(uint256).max);
+            vm.prank(sender);
+            IPresale.Receipt memory receipt = presale.purchase(account, assetAmount);
+
+            assertEq(presale.userTokensAllocated(account), receipt.tokensAllocated + prevAllocation);
+            assertEq(presale.totalRaised(), receipt.costAssets + prevTotalRaised);
+            assertEq(presaleToken.balanceOf(account), receipt.tokensAllocated + prevTokenBalance);
+            assertEq(presaleAsset.balanceOf(account), receipt.refundedAssets + prevAssetBalance);
+            assertEq(presaleAsset.balanceOf(WITHDRAW_TO), receipt.costAssets + prevWithdrawTo);
+        }
+
+        vm.assume(runsAtLeastOnce);
     }
 
     function test_reverts_whenAccountIsAZeroAddress() external {
@@ -315,6 +363,13 @@ contract PresaleTest__purchase is PresaleTest {
         assertEq(presale.config().minDepositAmount, 0);
         vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientAmount.selector, 0, 1));
         presale.purchase(ALICE, 0);
+    }
+
+    function test_reverts_whenNoTokensWereAllocated() external {
+        uint256 requiredTokens = presale.tokensToAssets(1, rounds[0].price) - 1;
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientAllocation.selector, 0, 1));
+        presale.purchase(ALICE, requiredTokens);
     }
 
     function test_reverts_whenAssetAmountIsLessThanMinDepositAmount() external {
@@ -341,16 +396,69 @@ contract PresaleTest__purchase is PresaleTest {
         presale.purchase(ALICE, 100);
     }
 
-    function test_success_whenPurchasingMaximumAllocation(address account, uint64 refundedAmount) external {
+    function test_success_whenPurchasingMaximumAllocation(address account, address sender, uint64 refundedAmount)
+        external
+    {
+        presaleConfig.maxUserAllocation = type(uint256).max;
+        setUp();
+
+        vm.assume(account != address(0) && sender != address(0));
+
+        vm.label(account, "account");
+        vm.label(sender, "sender");
+
         uint256 assetAmount = _remainingAssetAllocation() + refundedAmount;
+        presaleAsset.mint(sender, assetAmount);
+        vm.prank(sender);
+        presaleAsset.approve(address(presale), assetAmount);
 
-        presaleAsset.mint(ALICE, assetAmount);
-        vm.prank(ALICE);
-        presale.purchase(account, assetAmount);
+        uint256 receiptId = presale.totalPurchases() + 1;
 
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 0, account, _remainingRoundAssetAllocation(0), rounds[0].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 1, account, _remainingRoundAssetAllocation(1), rounds[1].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 2, account, _remainingRoundAssetAllocation(2), rounds[2].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 3, account, _remainingRoundAssetAllocation(3), rounds[3].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 4, account, _remainingRoundAssetAllocation(4), rounds[4].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 5, account, _remainingRoundAssetAllocation(5), rounds[5].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 6, account, _remainingRoundAssetAllocation(6), rounds[6].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Purchase(receiptId, 7, account, _remainingRoundAssetAllocation(7), rounds[7].allocation);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Close();
+
+        vm.prank(sender);
+        IPresale.Receipt memory receipt = presale.purchase(account, assetAmount);
+
+        assertTrue(presale.closed());
+        assertEq(presale.totalRaised(), assetAmount - refundedAmount);
+        assertEq(receipt.refundedAssets, refundedAmount);
     }
 
-    function test_success_whenPurchasingOneRoundAtATime() external {
+    function test_success_whenAttemptingToPurchaseMoreThanUserAllocation() external {
+        uint256 maxPurchasable = _remainingAssetAllocation();
 
+        uint256 expectedAssetsUsed = presale.tokensToAssets(presale.config().maxUserAllocation, rounds[0].price);
+        presaleAsset.mint(ALICE, maxPurchasable);
+        vm.prank(ALICE);
+        IPresale.Receipt memory receipt = presale.purchase(ALICE, maxPurchasable);
+
+        assertEq(receipt.refundedAssets, maxPurchasable - expectedAssetsUsed);
+        assertEq(receipt.tokensAllocated, presale.config().maxUserAllocation);
+        assertEq(receipt.costAssets, expectedAssetsUsed);
     }
 }
