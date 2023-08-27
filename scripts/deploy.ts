@@ -90,9 +90,12 @@ async function main() {
   await hre.run("verify:verify", {
     address: presaleRouter.address,
     constructorArguments: [
-      environment.presaleAsset,
-      presaleToken.address,
-      environment.owner,
+      environment.chainId,
+      environment.presaleChainId,
+      environment.stargatePoolId,
+      presale?.address || environment.presale,
+      environment.swapRouter,
+      environment.stargateRouter,
     ],
   });
 
