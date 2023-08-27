@@ -2,7 +2,6 @@ import {
   PlaceholderToken__factory,
   Presale,
   Presale__factory,
-  PresaleRouter__factory,
 } from "../typechain-types";
 import { BigNumber, Signer } from "ethers";
 import hre, { ethers } from "hardhat";
@@ -13,9 +12,6 @@ console.log(environment);
 async function main() {
   const [signer] = await ethers.getSigners();
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
-  const presaleRouterFactory = new PresaleRouter__factory(
-    signer as unknown as Signer
-  );
   const placeholderFactory = new PlaceholderToken__factory(
     signer as unknown as Signer
   );
@@ -25,7 +21,7 @@ async function main() {
     {
       minDepositAmount: 0,
       maxUserAllocation: BigNumber.from(10).pow(14),
-      startDate: Math.round(Date.now() / 1000) + 60,
+      startDate: BigNumber.from(Math.round(Date.now() / 1000)).add(300),
     },
     rounds,
   ];
@@ -50,19 +46,16 @@ async function main() {
 
   await presale.deployed();
 
-  const presaleRouter = await presaleRouterFactory.deploy(
-    presale.address,
-    environment.swapRouter
-  );
-
-  console.log(`PresaleRouter @ ${presaleRouter.address}`);
-
-  await presaleRouter.deployed();
-
+  console.log("approving");
   await presaleToken
     .approve(presale.address, totalTokenAllocation)
     .then((tx) => tx.wait());
+
+  console.log("approved");
+
   await presale.initialize(...initializeArgs).then((tx) => tx.wait());
+
+  console.log("initialized");
 
   await new Promise((res) => setTimeout(res, 30000));
 
@@ -75,12 +68,7 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: presale.address,
-    constructorArguments: [presaleAsset, presaleToken.address],
-  });
-
-  await hre.run("verify:verify", {
-    address: presaleRouter.address,
-    constructorArguments: [presale.address, swapRouter],
+    constructorArguments: [environment.presaleAsset, presaleToken.address],
   });
 
   console.log("completed");
