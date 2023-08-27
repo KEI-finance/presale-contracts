@@ -3,13 +3,13 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import "testing-lib/UniswapV3Test.t.sol";
+import "testing-lib/BaseTest.t.sol";
 import "testing-lib/ERC20Mock.t.sol";
 
 import "contracts/PlaceholderToken.sol";
 import "contracts/Presale.sol";
 
-contract PresaleTest is UniswapV3Test, IPresaleErrors {
+contract PresaleTest is BaseTest, IPresaleErrors {
     using SafeCast for uint256;
 
     uint256 public constant PRECISION = 1e8;

@@ -1,10 +1,8 @@
 # KEI Presale Contract
 
-Contract allows for off-chain purchases via fiat to be registered in contract state.
+The KEI finance Presale contract. Distributing placeholder tokens for the launch of the KEI finance protocol.
 
-ETH price is taken from the Chainlink Oracle on Arbitrum One:
-
-https://data.chain.link/arbitrum/mainnet/crypto-usd/eth-usd
+https://docs.kei.fi/welcome-to-kei-finance/presale-opportunity-29th-aug
 
 ## Setup
 
