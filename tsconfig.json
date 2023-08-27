@@ -22,6 +22,7 @@
     "./contracts",
     "./configs",
     "./scripts",
+    "./environment",
     "./tests",
     "./types",
     "./src",

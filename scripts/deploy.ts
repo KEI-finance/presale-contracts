@@ -1,30 +1,75 @@
-import { Presale__factory } from "../typechain-types";
+import {
+  PlaceholderToken__factory,
+  Presale,
+  Presale__factory,
+} from "../typechain-types";
 import { BigNumber, Signer } from "ethers";
-import { ethers } from "hardhat";
-import { rounds } from "../config";
+import hre, { ethers } from "hardhat";
+import { rounds, totalTokenAllocation } from "../config";
+import environment from "../environment";
 
+console.log(environment);
 async function main() {
   const [signer] = await ethers.getSigners();
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
+  const placeholderFactory = new PlaceholderToken__factory(
+    signer as unknown as Signer
+  );
 
-  // goerli configuration
-  const presale = await presaleFactory.deploy(
-    "0x48731cF7e84dc94C5f84577882c14Be11a5B7456",
-    "0x3829018f5c984b2b7cf8382704da7329d4c27da4",
-    "0x73967c6a0904aA032C103b4104747E88c566B1A2",
+  const initializeArgs: Parameters<Presale["initialize"]> = [
+    environment.swapRouter,
     {
       minDepositAmount: 0,
       maxUserAllocation: BigNumber.from(10).pow(14),
-      endDate: Math.round(new Date("11/01/2023").getTime() / 1000),
-      startDate: Math.round(new Date("08/01/2023").getTime() / 1000),
-      withdrawTo: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3",
+      startDate: BigNumber.from(Math.round(Date.now() / 1000)).add(300),
     },
-    rounds
+    rounds,
+  ];
+
+  const presaleToken = await placeholderFactory.deploy(
+    signer.address,
+    totalTokenAllocation
   );
 
-  console.log(`Deployed to ${presale.address}`);
+  console.log("PresaleToken @ ", presaleToken.address);
+
+  await presaleToken.deployed();
+
+  // goerli configuration
+  const presale = await presaleFactory.deploy(
+    environment.presaleAsset,
+    presaleToken.address,
+    environment.owner
+  );
+
+  console.log(`Presale @ ${presale.address}`);
 
   await presale.deployed();
+
+  console.log("approving");
+  await presaleToken
+    .approve(presale.address, totalTokenAllocation)
+    .then((tx) => tx.wait());
+
+  console.log("approved");
+
+  await presale.initialize(...initializeArgs).then((tx) => tx.wait());
+
+  console.log("initialized");
+
+  await new Promise((res) => setTimeout(res, 30000));
+
+  console.log("verifying");
+
+  await hre.run("verify:verify", {
+    address: presaleToken.address,
+    constructorArguments: [signer.address, totalTokenAllocation.toString()],
+  });
+
+  await hre.run("verify:verify", {
+    address: presale.address,
+    constructorArguments: [environment.presaleAsset, presaleToken.address],
+  });
 
   console.log("completed");
 }

@@ -1,15 +1,47 @@
 # KEI Presale Contract
 
-Users can purchase the KEI token with ETH, USDC or DAI.
+The KEI finance Presale contract. Distributing placeholder tokens for the launch of the KEI finance protocol.
 
-Contract allows for off-chain purchases via fiat to be registered in contract state.
+https://docs.kei.fi/welcome-to-kei-finance/presale-opportunity-29th-aug
 
-ETH price is taken from the Chainlink Oracle on Arbitrum One:
+## Setup
 
-https://data.chain.link/arbitrum/mainnet/crypto-usd/eth-usd
-
-## Foundry
-
+```bash
+yarn # installs the package dependencies
+forge install # installs the forge dependencies
 ```
+
+## Building
+
+```bash
+forge build
+```
+
+## Testing
+
+```bash
 forge test -vvv
+```
+
+## Test Coverage
+
+```bash
+forge coverage
+```
+
+## Deploying
+
+
+Create a `.env` and fill it out
+
+```bash
+cp .env.example .env
+vim .env
+```
+
+Deploy the contracts to the selected `{network}`
+Supported networks `goerli` `arbitrumOne`
+
+```bash
+npx hardhat run scripts/deploy.ts --network {network}
 ```

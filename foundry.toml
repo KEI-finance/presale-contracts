@@ -1,21 +1,12 @@
 [profile.default]
 src = "contracts"
-test = 'foundry/tests'
-out = "artifacts"
-libs = ["node_modules", "foundry/lib"]
-remappings = [
-    "@openzeppelin/=node_modules/@openzeppelin/",
-    "eth-gas-reporter/=node_modules/eth-gas-reporter/",
-    "hardhat/=node_modules/hardhat/",
-]
+test = 'tests'
+out = "out"
+libs = ["lib", "node_modules"]
 optimizer = true
 optimizer-runs = 200
-bytecode_hash = "none"
-evm_version = "london"
-extra_output_files = [
-    "metadata"
-]
 ffi = true
+fs_permissions = [{ access = "read", path = "./"}]
 
 [fmt]
 line_length = 120
