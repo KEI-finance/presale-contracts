@@ -91,6 +91,12 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
 contract PresaleTest__initialize is PresaleTest {
     using SafeCast for uint256;
 
+    event ConfigUpdate(IPresale.PresaleConfig newConfig, address indexed sender);
+
+    event WithdrawToUpdate(address newWithdrawTo, address indexed sender);
+
+    event RoundsUpdate(IPresale.RoundConfig[] newRounds, address indexed sender);
+
     function setUp() public virtual override {
         // cancel initialization
     }
@@ -100,6 +106,13 @@ contract PresaleTest__initialize is PresaleTest {
         assertNotEq0(abi.encode(presale.config()), abi.encode(presaleConfig));
         assertNotEq0(abi.encode(presale.rounds()), abi.encode(rounds));
 
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit WithdrawToUpdate(WITHDRAW_TO, OWNER);
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit ConfigUpdate(presaleConfig, OWNER);
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit RoundsUpdate(rounds, OWNER);
+
         vm.prank(OWNER);
         presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
 
@@ -108,6 +121,8 @@ contract PresaleTest__initialize is PresaleTest {
         assertEq0(abi.encode(presale.rounds()), abi.encode(rounds));
 
         assertEq(presaleToken.balanceOf(address(presale)), _totalTokenAllocation());
+
+
     }
 
     function test_reverts_whenCalledMoreThanOnce() external {

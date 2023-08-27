@@ -290,7 +290,7 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
      * @dev sets the rounds for the presale. This will determine the price and allocation for each round.
      * @param newRounds the new rounds to set
      */
-    function _setRounds(RoundConfig[] memory newRounds) private {
+    function _setRounds(RoundConfig[] memory newRounds) internal {
         if (newRounds.length == 0) {
             revert PresaleInsufficientRounds();
         }
@@ -301,14 +301,18 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
             _totalTokenAllocation += newRounds[i].allocation;
         }
 
+        delete $currentRoundIndex;
+
         PRESALE_TOKEN.safeTransferFrom(_msgSender(), address(this), _totalTokenAllocation);
+
+        emit RoundsUpdate(newRounds, _msgSender());
     }
 
     /**
      * @dev sets the presale configuration values
      * @param newConfig the config to set
      */
-    function _setConfig(PresaleConfig memory newConfig) private {
+    function _setConfig(PresaleConfig memory newConfig) internal {
         if (newConfig.startDate <= block.timestamp) {
             revert PresaleInvalidStartDate(newConfig.startDate, block.timestamp);
         }
@@ -317,7 +321,7 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
             revert PresaleInsufficientMaxUserAllocation(newConfig.maxUserAllocation, 1);
         }
 
-        emit ConfigUpdate($config, newConfig, _msgSender());
+        emit ConfigUpdate(newConfig, _msgSender());
         $config = newConfig;
     }
 
@@ -325,11 +329,11 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
      * @dev Sets the withdrawTo for the contract. This address will be where the PRESALE_ASSETs are sent.
      * @param newWithdrawTo the new address to send to
      */
-    function _setWithdrawTo(address newWithdrawTo) private {
+    function _setWithdrawTo(address newWithdrawTo) internal {
         if (newWithdrawTo == address(0)) {
             revert PresaleInvalidAddress(newWithdrawTo);
         }
-        emit WithdrawToUpdate($withdrawTo, newWithdrawTo, _msgSender());
+        emit WithdrawToUpdate(newWithdrawTo, _msgSender());
         $withdrawTo = newWithdrawTo;
     }
 

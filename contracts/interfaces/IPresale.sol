@@ -12,35 +12,24 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 interface IPresale {
     /**
      * @notice Emitted when the {PresaleConfig} is updated.
-     * @param prevConfig The previous presale configuration.
      * @param newConfig The new presale configuration.
      * @param sender The message sender that triggered the event.
      */
-    event ConfigUpdate(PresaleConfig prevConfig, PresaleConfig newConfig, address indexed sender);
+    event ConfigUpdate(PresaleConfig newConfig, address indexed sender);
 
     /**
-     * @notice Emitted when the withdrawTo value is updated.
-     * @param prevValue The previous withdrawTo address
-     * @param newValue The new withdrawTo address
+     * @notice Emitted when the withdrawTo value has been updated.
+     * @param newWithdrawTo The previous withdrawTo address
      * @param sender The message sender that triggered the event.
      */
-    event WithdrawToUpdate(address prevValue, address newValue, address indexed sender);
+    event WithdrawToUpdate(address newWithdrawTo, address indexed sender);
 
     /**
      * @notice Emitted when the {RoundConfig} array is updated.
-     * @param prevRounds The previous array of round configurations.
      * @param newRounds The previous array of round configurations.
-     * @param prevCurrentRoundIndex The previous current round index.
-     * @param newCurrentRoundIndex The new current round index.
      * @param sender The message sender that triggered the event.
      */
-    event RoundsUpdate(
-        RoundConfig[] prevRounds,
-        RoundConfig[] newRounds,
-        uint256 prevCurrentRoundIndex,
-        uint256 newCurrentRoundIndex,
-        address indexed sender
-    );
+    event RoundsUpdate(RoundConfig[] newRounds, address indexed sender);
 
     /**
      * @notice Emitted when the presale has either finished or manually been closed
