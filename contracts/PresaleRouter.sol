@@ -19,7 +19,7 @@ contract PresaleRouter {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
-    uint256 public constant STARGATE_USDT_POOL_ID = 2;
+    uint256 public immutable STARGATE_POOL_ID;
 
     IPresale public immutable PRESALE;
     IERC20 public immutable PRESALE_ASSET;
@@ -33,12 +33,15 @@ contract PresaleRouter {
     constructor(
         uint16 chainId,
         uint16 presaleChainId,
+        uint256 stargatePoolId,
+
         IPresale presale,
         ISwapRouter swapRouter,
         IStargateRouter stargateRouter
     ) {
         CHAIN_ID = chainId;
         PRESALE_CHAIN_ID = presaleChainId;
+        STARGATE_POOL_ID = stargatePoolId;
 
         PRESALE = presale;
         PRESALE_ASSET = presale.PRESALE_ASSET();
@@ -70,8 +73,8 @@ contract PresaleRouter {
         } else {
             STARGATE_ROUTER.swap(
                 PRESALE_CHAIN_ID,
-                STARGATE_USDT_POOL_ID,
-                STARGATE_USDT_POOL_ID,
+                STARGATE_POOL_ID,
+                STARGATE_POOL_ID,
                 payable(config.account),
                 config.amountAsset,
                 config.amountAsset,

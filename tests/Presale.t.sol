@@ -55,7 +55,7 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
         presaleToken = new PlaceholderToken(OWNER, _totalTokenAllocation());
         presaleAsset = new ERC20Mock("USDT", "USDT");
         presale = new Presale(IERC20(address(presaleAsset)), IERC20(address(presaleToken)), OWNER);
-        presaleRouter = new PresaleRouter(0, 0, presale, swapRouter, IStargateRouter(address(swapRouter)));
+        presaleRouter = new PresaleRouter(0, 0, 2, presale, swapRouter, IStargateRouter(address(swapRouter)));
 
         vm.prank(OWNER);
         presaleToken.approve(address(presale), type(uint256).max);
@@ -177,5 +177,58 @@ contract PresaleTest__initialize is PresaleTest {
         vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientRounds.selector));
         vm.prank(OWNER);
         presale.initialize(WITHDRAW_TO, presaleConfig, new IPresale.RoundConfig[](0));
+    }
+}
+
+contract PresaleTest__close is PresaleTest {
+    event Close();
+
+    function test_success() external {
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit Close();
+
+        uint256 prevBalance = presaleToken.balanceOf(address(presale));
+        assertGt(prevBalance, 0);
+
+        vm.prank(OWNER);
+        presale.close();
+
+        assertEq(presaleToken.balanceOf(address(presale)), 0);
+        assertEq(presaleToken.balanceOf(WITHDRAW_TO), prevBalance);
+
+        assertTrue(presale.closed());
+    }
+
+    function test_success_whenPresaleHasNoTokensRemaining() external {
+        deal(address(presaleToken), address(presale), 0);
+
+        assertEq(presaleToken.balanceOf(address(presale)), 0);
+
+        vm.prank(OWNER);
+        presale.close();
+
+        assertEq(presaleToken.balanceOf(address(presale)), 0);
+    }
+
+    function test_reverts_whenCalledMoreThanOnce() external {
+        vm.startPrank(OWNER);
+
+        presale.close();
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidState.selector, PresaleState.CLOSED));
+        presale.close();
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidState.selector, PresaleState.CLOSED));
+        presale.close();
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidState.selector, PresaleState.CLOSED));
+        presale.close();
+
+        vm.stopPrank();
+    }
+
+    function test_reverts_whenCalledByNonOwner() external {
+        vm.expectRevert('Ownable: caller is not the owner');
+        presale.close();
     }
 }
