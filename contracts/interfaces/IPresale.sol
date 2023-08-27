@@ -5,8 +5,8 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /**
- * @title KEI Finance Presale Contract.
- * @author KEI Finance
+ * @title KEI finance Presale Contract.
+ * @author KEI finance
  * @notice A fund raising contract for initial token offering.
  */
 interface IPresale {
@@ -213,32 +213,31 @@ interface IPresale {
 
     /**
      * @notice Closes the Presale early, before all the rounds have been complete
-     * @custom:emits Close
-     * @custom:requirement The function caller must be the owner of the contract.
-     * @custom:requirement The contract must not already be closed.
+     * @dev emits Close
+     * @dev The function caller must be the owner of the contract.
+     * @dev The contract must not already be closed.
      */
     function close() external;
 
     /**
      * @notice Updates where the presale tokens will be sent
      * @param newWithdrawTo The new withdraw to address
-     * @custom:emits WithdrawToUpdate
-     * @custom:requirement The function caller must be the owner of the contract.
+     * @dev emits WithdrawToUpdate
+     * @dev The function caller must be the owner of the contract.
      */
     function setWithdrawTo(address newWithdrawTo) external;
 
     /**
-     * @notice Purchases tokens for `account`, by spending PRESALE_ASSETs
+     * @notice Purchases tokens for `account`, by spending PRESALE_ASSETs. Will continue to purchase through each
+     * round until all the funds or the max user allocation has been hit.
      * @param account The account who will receive the tokens.
      * @param assetAmount The amount of assets to purchase with.
-     * @custom:emits Purchase - for each round that the purchase is made within
-     * @custom:emits PurchaseReceipt
-     * @custom:requirement The contract must not be ended.
-     * @custom:requirement The current block timestamp must be grater or equal to the presale configuration `startDate`.
-     * @custom:requirement The asset value of the intended purchase amount must be greater than zero or the presale configuration minimum deposit amount is equal to zero.
-     * @custom:requirement Either the refunded purchase asset amount or tokens allocated must be equal to zero, or the refunded purchase asset amount is not equal to the
-     * intended purchase asset amount.
-     * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
+     * @dev emits Purchase - for each round that the purchase is made within
+     * @dev emits PurchaseReceipt
+     * @dev reverts if the contract is closed.
+     * @dev reverts if the current block timestamp is less than the `startDate`.
+     * @dev reverts if the asset value is 0 or less than the minimum deposit amount
+     * @dev reverts if there are no tokens allocated
      * @return The receipt.
      */
     function purchase(address account, uint256 assetAmount) external returns (Receipt memory);
