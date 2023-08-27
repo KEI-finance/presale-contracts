@@ -19,28 +19,29 @@ forge build
 
 ## Testing
 
-```
+```bash
 forge test -vvv
 ```
 
 ## Test Coverage
 
-```
+```bash
 forge coverage
 ```
 
 ## Deploying
 
-Supported networks `goerli` `arbitrumOne`
 
 Create a `.env` and fill it out
 
-```env
+```bash
 cp .env.example .env
 vim .env
 ```
 
-Deploy the contracts
-```
+Deploy the contracts to the selected `{network}`
+Supported networks `goerli` `arbitrumOne`
+
+```bash
 npx hardhat run scripts/deploy.ts --network {network}
 ```
