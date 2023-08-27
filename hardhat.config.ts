@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-foundry";
 import "@nomiclabs/hardhat-ethers";
 import "hardhat-package";
-import process from "process";
 
 const config: HardhatUserConfig = {
   solidity: "0.8.19",

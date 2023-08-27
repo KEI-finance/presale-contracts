@@ -1,6 +1,11 @@
 import { IPresale } from "./typechain-types";
 import { BigNumber } from "ethers";
 
+export const config: IPresale.PresaleConfigStruct = {
+  minDepositAmount: 0,
+  maxUserAllocation: BigNumber.from(10).pow(14),
+  startDate: BigNumber.from(Math.round(Date.now() / 1000)).add(300),
+};
 export const rounds: IPresale.RoundConfigStruct[] = [
   {
     price: makePrice(0.07),
