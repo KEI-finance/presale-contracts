@@ -138,6 +138,11 @@ interface IPresale {
     function config() external view returns (PresaleConfig memory);
 
     /**
+     * @notice Returns where the funds will be sent on a successful purchase.
+     */
+    function withdrawTo() external view returns (address);
+
+    /**
      * @notice Returns whether or not the presale has ended
      */
     function closed() external view returns (bool);

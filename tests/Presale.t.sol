@@ -237,9 +237,27 @@ contract PresaleTest__setWithdrawTo is PresaleTest {
     event WithdrawToUpdate(address newWithdrawTo, address indexed sender);
 
     function test_success(address newWithdrawTo) external {
-        vm.assume(newWithdrawTo != address(0));
+        vm.assume(newWithdrawTo != address(0) && WITHDRAW_TO != newWithdrawTo);
+
+        assertEq(presale.withdrawTo(), WITHDRAW_TO);
+
+        vm.expectEmit(true, true, true, true, address(presale));
+        emit WithdrawToUpdate(newWithdrawTo, OWNER);
 
         vm.prank(OWNER);
         presale.setWithdrawTo(newWithdrawTo);
+
+        assertEq(presale.withdrawTo(), newWithdrawTo);
+    }
+
+    function test_reverts_whenNotCalledByOwner(address newWithdrawTo) external {
+        vm.expectRevert('Ownable: caller is not the owner');
+        presale.setWithdrawTo(newWithdrawTo);
+    }
+
+    function test_reverts_whenUsingTheSameWithdrawTo() external {
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidAddress.selector, WITHDRAW_TO));
+        vm.prank(OWNER);
+        presale.setWithdrawTo(WITHDRAW_TO);
     }
 }

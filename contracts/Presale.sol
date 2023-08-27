@@ -186,6 +186,13 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
     /**
      * @inheritdoc IPresale
      */
+    function withdrawTo() external view override returns (address) {
+        return $withdrawTo;
+    }
+
+    /**
+     * @inheritdoc IPresale
+     */
     function currentRoundIndex() external view override returns (uint256) {
         return $currentRoundIndex;
     }
