@@ -6,17 +6,19 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol";
 
 import "stargate/IStargateRouter.sol";
+import "stargate/IStargateReceiver.sol";
 
 import "./interfaces/IPresale.sol";
 
 /**
  * @notice Implementation of the {IPresale} interface.
  */
-contract PresaleRouter {
+contract PresaleRouter is IStargateReceiver {
     using Address for address payable;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -27,8 +29,8 @@ contract PresaleRouter {
     IERC20 public immutable PRESALE_ASSET;
     ISwapRouter public immutable SWAP_ROUTER;
     IStargateRouter public immutable STARGATE_ROUTER;
+    IWETH9 public immutable WETH9;
 
-    address public immutable WETH9;
     uint16 public immutable CHAIN_ID;
     uint16 public immutable PRESALE_CHAIN_ID;
 
@@ -48,10 +50,27 @@ contract PresaleRouter {
         PRESALE_ASSET = presale.PRESALE_ASSET();
         SWAP_ROUTER = swapRouter;
         STARGATE_ROUTER = stargateRouter;
-        WETH9 = IPeripheryImmutableState(address(swapRouter)).WETH9();
+        WETH9 = IWETH9(IPeripheryImmutableState(address(swapRouter)).WETH9());
 
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
         PRESALE_ASSET.approve(address(STARGATE_ROUTER), type(uint256).max);
+    }
+
+    function sgReceive(
+        uint16 srcChainId,              // the remote chainId sending the tokens
+        bytes memory srcAddress,        // the remote Bridge address
+        uint256 nonce,
+        address token,                  // the token contract on the local chain
+        uint256 amountLD,                // the qty of local _token contract tokens
+        bytes memory payload
+    ) external override {
+        address account = abi.decode(payload, (address));
+
+        if (token == address(PRESALE_ASSET)) {
+            PRESALE.purchase(account, amountLD);
+        } else {
+            IERC20(token).safeTransfer(PRESALE.withdrawTo(), amountLD);
+        }
     }
 
     function purchase(ISwapRouter.ExactInputParams memory params) external payable {
@@ -78,10 +97,11 @@ contract PresaleRouter {
                 STARGATE_POOL_ID,
                 payable(account),
                 assetAmount,
-                assetAmount,
+                0, // min amount of tokens we want to receive
                 IStargateRouter.lzTxObj(0, 0, "0x"),
-                abi.encodePacked(PRESALE),
-                abi.encodeWithSelector(IPresale.purchase.selector, account, assetAmount)
+                // we can use the same address because it should be deployed to the same address
+                abi.encodePacked(address(this)),
+                abi.encode(account)
             );
         }
     }
