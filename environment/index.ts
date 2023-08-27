@@ -2,9 +2,11 @@ import hre from "hardhat";
 import path from "path";
 
 let environment = {
-  swapRouter: "",
+  stargateRouter: "",
   presaleAsset: "",
+  swapRouter: "",
   withdrawTo: "",
+  presale: "",
   owner: "",
   stargatePoolId: 0,
   chainId: 0,

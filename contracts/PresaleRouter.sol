@@ -24,7 +24,7 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
-    uint256 public constant STARGATE_POOL_ID;
+    uint256 public immutable STARGATE_POOL_ID;
 
     IPresale public immutable PRESALE;
     IERC20 public immutable PRESALE_ASSET;

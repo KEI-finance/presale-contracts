@@ -3,14 +3,13 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import "testing-lib/UniswapV3Test.t.sol";
+import "testing-lib/BaseTest.t.sol";
 import "testing-lib/ERC20Mock.t.sol";
 
 import "contracts/PlaceholderToken.sol";
 import "contracts/Presale.sol";
-import "contracts/PresaleRouter.sol";
 
-contract PresaleTest is UniswapV3Test, IPresaleErrors {
+contract PresaleTest is BaseTest, IPresaleErrors {
     using SafeCast for uint256;
 
     uint256 public constant PRECISION = 1e8;
@@ -22,7 +21,6 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
     ERC20Mock public presaleAsset;
 
     Presale public presale;
-    PresaleRouter public presaleRouter;
 
     IPresale.PresaleConfig public presaleConfig = IPresale.PresaleConfig({
         minDepositAmount: _fmtAsset(0),
@@ -59,7 +57,6 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
         presaleToken = new PlaceholderToken(OWNER, _totalTokenAllocation());
         presaleAsset = new ERC20Mock("USDT", "USDT");
         presale = new Presale(IERC20(address(presaleAsset)), IERC20(address(presaleToken)), OWNER);
-        presaleRouter = new PresaleRouter(0, 0, 2, presale, swapRouter, IStargateRouter(address(swapRouter)));
 
         vm.prank(OWNER);
         presaleToken.approve(address(presale), type(uint256).max);

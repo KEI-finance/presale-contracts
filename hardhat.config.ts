@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-foundry";
 import "@nomiclabs/hardhat-ethers";
 import "hardhat-package";
-import process from "process";
 
 const config: HardhatUserConfig = {
   solidity: "0.8.19",
@@ -33,7 +32,14 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY!,
+      goerli: process.env.ETHERSCAN_API_KEY!,
+      arbitrumGoerli: process.env.ARB_ETHERSCAN_API_KEY!,
+      arbitrumOne: process.env.ARB_ETHERSCAN_API_KEY!,
+      bscTestnet: process.env.BSC_ETHERSCAN_API_KEY!,
+      polygonMumbai: process.env.POLYGON_ETHERSCAN_API_KEY!,
+    },
   },
 };
 
