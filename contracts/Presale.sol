@@ -330,9 +330,10 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
      * @param newWithdrawTo the new address to send to
      */
     function _setWithdrawTo(address newWithdrawTo) internal {
-        if (newWithdrawTo == address(0)) {
+        if (newWithdrawTo == address(0) || newWithdrawTo == $withdrawTo) {
             revert PresaleInvalidAddress(newWithdrawTo);
         }
+
         emit WithdrawToUpdate(newWithdrawTo, _msgSender());
         $withdrawTo = newWithdrawTo;
     }

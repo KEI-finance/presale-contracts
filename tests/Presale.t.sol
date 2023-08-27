@@ -232,3 +232,14 @@ contract PresaleTest__close is PresaleTest {
         presale.close();
     }
 }
+
+contract PresaleTest__setWithdrawTo is PresaleTest {
+    event WithdrawToUpdate(address newWithdrawTo, address indexed sender);
+
+    function test_success(address newWithdrawTo) external {
+        vm.assume(newWithdrawTo != address(0));
+
+        vm.prank(OWNER);
+        presale.setWithdrawTo(newWithdrawTo);
+    }
+}
