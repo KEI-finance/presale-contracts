@@ -11,7 +11,6 @@ import environment from "../environment";
 
 console.log(environment);
 async function main() {
-  return;
   const [signer] = await ethers.getSigners();
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
   const presaleRouterFactory = new PresaleRouter__factory(

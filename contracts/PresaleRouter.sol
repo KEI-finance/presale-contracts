@@ -14,11 +14,12 @@ import "stargate/IStargateReceiver.sol";
 
 import "./interfaces/external/IWETH9.sol";
 import "./interfaces/IPresale.sol";
+import "./interfaces/IPresaleRouter.sol";
 
 /**
  * @notice Implementation of the {IPresale} interface.
  */
-contract PresaleRouter is IStargateReceiver {
+contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     using Address for address payable;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -67,10 +68,14 @@ contract PresaleRouter is IStargateReceiver {
         address account = abi.decode(payload, (address));
 
         if (token == address(PRESALE_ASSET)) {
-            PRESALE.purchase(account, amountLD);
-        } else {
-            IERC20(token).safeTransfer(PRESALE.withdrawTo(), amountLD);
+            try PRESALE.purchase(account, amountLD) {
+                return;
+            } catch {
+                // then transfer the tokens to the account directly
+            }
         }
+
+        IERC20(token).safeTransfer(account, amountLD);
     }
 
     function purchase(ISwapRouter.ExactInputParams memory params) external payable {
@@ -91,6 +96,7 @@ contract PresaleRouter is IStargateReceiver {
         if (CHAIN_ID == PRESALE_CHAIN_ID) {
             PRESALE.purchase(account, assetAmount);
         } else {
+            address receiver = address(this);
             STARGATE_ROUTER.swap(
                 PRESALE_CHAIN_ID,
                 STARGATE_POOL_ID,
@@ -98,9 +104,9 @@ contract PresaleRouter is IStargateReceiver {
                 payable(account),
                 assetAmount,
                 0, // min amount of tokens we want to receive
-                IStargateRouter.lzTxObj(0, 0, "0x"),
+                IStargateRouter.lzTxObj(0, 0, receiver),
                 // we can use the same address because it should be deployed to the same address
-                abi.encodePacked(address(this)),
+                abi.encodePacked(receiver),
                 abi.encode(account)
             );
         }
