@@ -6,6 +6,9 @@ let environment = {
   presaleAsset: "",
   withdrawTo: "",
   owner: "",
+  stargatePoolId: 0,
+  chainId: 0,
+  presaleChainId: 0,
 };
 
 try {

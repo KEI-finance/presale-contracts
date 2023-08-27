@@ -24,7 +24,7 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
-    uint256 public immutable STARGATE_POOL_ID;
+    uint256 public constant STARGATE_POOL_ID;
 
     IPresale public immutable PRESALE;
     IERC20 public immutable PRESALE_ASSET;
@@ -96,7 +96,7 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         if (CHAIN_ID == PRESALE_CHAIN_ID) {
             PRESALE.purchase(account, assetAmount);
         } else {
-            address receiver = address(this);
+            bytes memory receiver = abi.encodePacked(address(this));
             STARGATE_ROUTER.swap(
                 PRESALE_CHAIN_ID,
                 STARGATE_POOL_ID,
@@ -106,7 +106,7 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
                 0, // min amount of tokens we want to receive
                 IStargateRouter.lzTxObj(0, 0, receiver),
                 // we can use the same address because it should be deployed to the same address
-                abi.encodePacked(receiver),
+                receiver,
                 abi.encode(account)
             );
         }

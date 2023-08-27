@@ -5,6 +5,7 @@ import {
 } from "../typechain-types";
 import hre, { ethers } from "hardhat";
 import { constants } from "ethers";
+import { parseUnits } from "ethers/lib/utils";
 
 async function main() {
   const [signer] = await ethers.getSigners();
@@ -42,8 +43,8 @@ async function main() {
 
   const call = {
     dstGasForCall: 800_000, // extra gas, if calling smart contract,
-    dstNativeAmount: 0, // amount of dust dropped in destination wallet
-    dstNativeAddr: DUMMY_BSC_TESTNET, // destination wallet for dust
+    dstNativeAmount: parseUnits("0.01", "ether"), // amount of dust dropped in destination wallet
+    dstNativeAddr: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3", // destination wallet for dust
   };
 
   const quoteData = await stargate.quoteLayerZeroFee(
