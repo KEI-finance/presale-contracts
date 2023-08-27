@@ -10,7 +10,7 @@ import "contracts/PlaceholderToken.sol";
 import "contracts/Presale.sol";
 import "contracts/PresaleRouter.sol";
 
-contract PresaleTest is UniswapV3Test {
+contract PresaleTest is UniswapV3Test, IPresaleErrors {
     using SafeCast for uint256;
 
     uint256 public constant PRECISION = 1e8;
@@ -42,25 +42,23 @@ contract PresaleTest is UniswapV3Test {
         _createContracts();
     }
 
-    function setUp() external {
+    function setUp() public virtual {
         vm.label(address(presaleAsset), "USDT");
 
-        vm.startPrank(OWNER);
-
-        assertEq(presaleToken.balanceOf(OWNER), _totalTokenAllocation());
-        presaleToken.approve(address(presale), type(uint256).max);
+        vm.prank(OWNER);
         presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
-
-        vm.stopPrank();
     }
 
-    function test_success() external {}
+    function test_construct() external {}
 
     function _createContracts() internal {
         presaleToken = new PlaceholderToken(OWNER, _totalTokenAllocation());
         presaleAsset = new ERC20Mock("USDT", "USDT");
         presale = new Presale(IERC20(address(presaleAsset)), IERC20(address(presaleToken)), OWNER);
         presaleRouter = new PresaleRouter(0, 0, presale, swapRouter, IStargateRouter(address(swapRouter)));
+
+        vm.prank(OWNER);
+        presaleToken.approve(address(presale), type(uint256).max);
     }
 
     function _fmtAsset(uint256 amount) internal pure returns (uint256) {
@@ -77,7 +75,7 @@ contract PresaleTest is UniswapV3Test {
 
     function _totalTokenAllocation() internal view returns (uint256 totalTokenAllocation) {
         for (uint256 i = 0; i < rounds.length; i++) {
-            totalTokenAllocation += rounds[i].tokenAllocation;
+            totalTokenAllocation += rounds[i].allocation;
         }
     }
 
@@ -87,5 +85,82 @@ contract PresaleTest is UniswapV3Test {
         returns (IPresale.RoundConfig memory)
     {
         return IPresale.RoundConfig(_fmtPrice(price).toUint128(), _fmtToken(tokenAllocation).toUint128());
+    }
+}
+
+contract PresaleTest__initialize is PresaleTest {
+    using SafeCast for uint256;
+
+    function setUp() public virtual override {
+        // cancel initialization
+    }
+
+    function test_success() external {
+        assertEq(presale.totalRounds(), 0);
+        assertNotEq0(abi.encode(presale.config()), abi.encode(presaleConfig));
+        assertNotEq0(abi.encode(presale.rounds()), abi.encode(rounds));
+
+        vm.prank(OWNER);
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+
+        assertEq(presale.totalRounds(), rounds.length);
+        assertEq0(abi.encode(presale.config()), abi.encode(presaleConfig));
+        assertEq0(abi.encode(presale.rounds()), abi.encode(rounds));
+
+        assertEq(presaleToken.balanceOf(address(presale)), _totalTokenAllocation());
+    }
+
+    function test_reverts_whenCalledMoreThanOnce() external {
+        vm.startPrank(OWNER);
+
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+
+        vm.stopPrank();
+    }
+
+    function test_reverts_whenCalledByANonOwner() external {
+        vm.prank(ALICE);
+        vm.expectRevert("Ownable: caller is not the owner");
+        presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
+    }
+
+    function test_reverts_whenCalledWithAnInvalidWithdrawToAddress() external {
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidAddress.selector, address(0)));
+        vm.prank(OWNER);
+        presale.initialize(address(0), presaleConfig, rounds);
+    }
+
+    function test_reverts_whenCalledWithAnInvalidConfig() external {
+        vm.startPrank(OWNER);
+
+        IPresale.PresaleConfig memory newConfig = presaleConfig;
+
+        newConfig.startDate = (block.timestamp - 1).toUint48();
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidStartDate.selector, newConfig.startDate, block.timestamp));
+        presale.initialize(WITHDRAW_TO, newConfig, rounds);
+
+        newConfig = presaleConfig;
+        newConfig.maxUserAllocation = 0;
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientMaxUserAllocation.selector, 0, 1));
+        presale.initialize(WITHDRAW_TO, newConfig, rounds);
+
+        vm.stopPrank();
+    }
+
+    function test_reverts_whenCalledWithAnInvalidRounds() external {
+        vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientRounds.selector));
+        vm.prank(OWNER);
+        presale.initialize(WITHDRAW_TO, presaleConfig, new IPresale.RoundConfig[](0));
     }
 }

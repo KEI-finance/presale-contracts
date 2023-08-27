@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /**
  * @title KEI Finance Presale Contract.
@@ -84,8 +84,8 @@ interface IPresale {
      * @param roundType The type of the round.
      */
     struct RoundConfig {
-        uint128 tokenPrice;
-        uint128 tokenAllocation;
+        uint128 price;
+        uint128 allocation;
     }
 
     /**
@@ -245,5 +245,5 @@ interface IPresale {
      * @param newRounds the round configuration for the presale
      */
     function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds)
-        external;
+    external;
 }

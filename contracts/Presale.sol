@@ -9,12 +9,13 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import "./IPresale.sol";
+import "./interfaces/IPresale.sol";
+import "./interfaces/IPresaleErrors.sol";
 
 /**
  * @notice Implementation of the {IPresale} interface.
  */
-contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
+contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, ReentrancyGuard {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -36,8 +37,13 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
     mapping(address => uint256) private $userTokensAllocated;
 
     constructor(IERC20 presaleAsset, IERC20 presaleToken, address newOwner) {
-        require(Address.isContract(address(presaleAsset)), "INVALID_PRESALE_ASSET");
-        require(Address.isContract(address(presaleToken)), "INVALID_PRESALE_TOKEN");
+        if (!Address.isContract(address(presaleAsset))) {
+            revert PresaleInvalidContract(address(presaleAsset));
+        }
+
+        if (!Address.isContract(address(presaleToken))) {
+            revert PresaleInvalidContract(address(presaleToken));
+        }
 
         PRESALE_ASSET = presaleAsset;
         PRESALE_TOKEN = presaleToken;
@@ -82,30 +88,39 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
         nonReentrant
         returns (Receipt memory receipt)
     {
-        require(purchaseConfig.account != address(0), "INVALID_ACCOUNT");
-        require(purchaseConfig.amountAsset > 0, "INVALID_AMOUNT");
+        if (purchaseConfig.account == address(0)) {
+            revert PresaleInvalidAddress(purchaseConfig.account);
+        }
 
-        PurchaseCache memory _c;
         PresaleConfig memory _config = $config;
+
+        if (block.timestamp < _config.startDate) {
+            revert PresaleInvalidState(PresaleState.PENDING);
+        }
+
+        if (purchaseConfig.amountAsset == 0 || purchaseConfig.amountAsset < _config.minDepositAmount) {
+            revert PresaleInsufficientAmount(
+                purchaseConfig.amountAsset, _config.minDepositAmount == 0 ? 1 : _config.minDepositAmount
+            );
+        }
+
+        if ($closed) {
+            revert PresaleInvalidState(PresaleState.CLOSED);
+        }
+
         receipt.id = ++$totalPurchases;
 
+        PurchaseCache memory _c;
         _c.totalRounds = $rounds.length;
         _c.currentIndex = $currentRoundIndex;
         _c.remainingAssets = purchaseConfig.amountAsset;
         _c.userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
 
-        require(block.timestamp >= _config.startDate, "PRESALE_NOT_STARTED");
-        require(!$closed, "PRESALE_CLOSED");
-        require(
-            purchaseConfig.amountAsset >= _config.minDepositAmount || _config.minDepositAmount == 0,
-            "MIN_DEPOSIT_AMOUNT"
-        );
-
         while (_c.currentIndex < _c.totalRounds && _c.remainingAssets > 0 && _c.userAllocationRemaining > 0) {
             RoundConfig memory _round = $rounds[_c.currentIndex];
 
             _c.roundAllocationRemaining = _remainingRoundAllocation(_c.currentIndex, _round);
-            _c.userAllocation = assetsToTokens(_c.remainingAssets, _round.tokenPrice);
+            _c.userAllocation = assetsToTokens(_c.remainingAssets, _round.price);
 
             if (_c.userAllocation > _c.roundAllocationRemaining) {
                 _c.userAllocation = _c.roundAllocationRemaining;
@@ -115,7 +130,7 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
             }
 
             if (_c.userAllocation > 0) {
-                uint256 _costAssets = tokensToAssets(_c.userAllocation, _round.tokenPrice);
+                uint256 _costAssets = tokensToAssets(_c.userAllocation, _round.price);
 
                 _c.remainingAssets = _subZero(_c.remainingAssets, _costAssets);
                 _c.userAllocationRemaining = _subZero(_c.userAllocationRemaining, _c.userAllocation);
@@ -148,12 +163,14 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
         receipt.tokensAllocated = _c.totalTokenAllocation;
         receipt.costAssets = purchaseConfig.amountAsset - receipt.refundedAssets;
 
+        if (receipt.tokensAllocated == 0) {
+            revert PresaleInsufficientAllocation(receipt.tokensAllocated, 1);
+        }
+
         // edge case to prevent the user from getting free tokens
-        require(
-            receipt.refundedAssets == 0 || receipt.tokensAllocated == 0
-                || receipt.refundedAssets != purchaseConfig.amountAsset,
-            "INVALID_PURCHASE"
-        );
+        if (receipt.tokensAllocated > 0 && receipt.costAssets == 0) {
+            revert PresaleInvalidPurchase(purchaseConfig, receipt);
+        }
 
         if (receipt.refundedAssets > 0) {
             _sendAssets(purchaseConfig.account, receipt.refundedAssets);
@@ -162,8 +179,6 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
         if (receipt.costAssets > 0) {
             _sendAssets($withdrawTo, receipt.costAssets);
         }
-
-        require(receipt.tokensAllocated > 0, "NO_TOKENS_ALLOCATED");
 
         emit PurchaseReceipt(receipt.id, purchaseConfig, receipt, _msgSender());
     }
@@ -257,7 +272,9 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
      * PRESALE_TOKENs to the withdrawTo address.
      */
     function _close() private {
-        require(!$closed, "PRESALE_ALREADY_CLOSED");
+        if ($closed) {
+            revert PresaleInvalidState(PresaleState.CLOSED);
+        }
 
         $closed = true;
 
@@ -267,6 +284,53 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
         }
 
         emit Close();
+    }
+
+    /**
+     * @dev sets the rounds for the presale. This will determine the price and allocation for each round.
+     * @param newRounds the new rounds to set
+     */
+    function _setRounds(RoundConfig[] memory newRounds) private {
+        if (newRounds.length == 0) {
+            revert PresaleInsufficientRounds();
+        }
+
+        uint256 _totalTokenAllocation;
+        for (uint256 i; i < newRounds.length; ++i) {
+            $rounds.push(newRounds[i]);
+            _totalTokenAllocation += newRounds[i].allocation;
+        }
+
+        PRESALE_TOKEN.safeTransferFrom(_msgSender(), address(this), _totalTokenAllocation);
+    }
+
+    /**
+     * @dev sets the presale configuration values
+     * @param newConfig the config to set
+     */
+    function _setConfig(PresaleConfig memory newConfig) private {
+        if (newConfig.startDate <= block.timestamp) {
+            revert PresaleInvalidStartDate(newConfig.startDate, block.timestamp);
+        }
+
+        if (newConfig.maxUserAllocation == 0) {
+            revert PresaleInsufficientMaxUserAllocation(newConfig.maxUserAllocation, 1);
+        }
+
+        emit ConfigUpdate($config, newConfig, _msgSender());
+        $config = newConfig;
+    }
+
+    /**
+     * @dev Sets the withdrawTo for the contract. This address will be where the PRESALE_ASSETs are sent.
+     * @param newWithdrawTo the new address to send to
+     */
+    function _setWithdrawTo(address newWithdrawTo) private {
+        if (newWithdrawTo == address(0)) {
+            revert PresaleInvalidAddress(newWithdrawTo);
+        }
+        emit WithdrawToUpdate($withdrawTo, newWithdrawTo, _msgSender());
+        $withdrawTo = newWithdrawTo;
     }
 
     /**
@@ -283,52 +347,13 @@ contract Presale is IPresale, Ownable2Step, Initializable, ReentrancyGuard {
     }
 
     /**
-     * @dev sets the rounds for the presale. This will determine the price and allocation for each round.
-     * @param newRounds the new rounds to set
-     */
-    function _setRounds(RoundConfig[] memory newRounds) private {
-        require(newRounds.length > 0);
-
-        uint256 _totalTokenAllocation;
-        for (uint256 i; i < newRounds.length; ++i) {
-            $rounds.push(newRounds[i]);
-            _totalTokenAllocation += newRounds[i].tokenAllocation;
-        }
-
-        PRESALE_TOKEN.safeTransferFrom(_msgSender(), address(this), _totalTokenAllocation);
-    }
-
-    /**
-     * @dev sets the presale configuration values
-     * @param newConfig the config to set
-     */
-    function _setConfig(PresaleConfig memory newConfig) private {
-        require(newConfig.startDate > block.timestamp, "INVALID_START_DATE");
-        require(newConfig.maxUserAllocation > 0, "INVALID_MAX_USER_ALLOCATION");
-
-        emit ConfigUpdate($config, newConfig, _msgSender());
-
-        $config = newConfig;
-    }
-
-    /**
-     * @dev Sets the withdrawTo for the contract. This address will be where the PRESALE_ASSETs are sent.
-     * @param newWithdrawTo the new address to send to
-     */
-    function _setWithdrawTo(address newWithdrawTo) private {
-        require(newWithdrawTo != address(0), "INVALID_WITHDRAW_TO");
-        emit WithdrawToUpdate($withdrawTo, newWithdrawTo, _msgSender());
-        $withdrawTo = newWithdrawTo;
-    }
-
-    /**
      * @dev Calculates the rounds remaining allocation
      * @param roundIndex the round index to query
      * @param round_ the {RoundConfig} which is associated to the roundIndex
      */
     function _remainingRoundAllocation(uint256 roundIndex, RoundConfig memory round_) private view returns (uint256) {
         uint256 _roundTotalAllocated = $roundTokensAllocated[roundIndex];
-        return _subZero(round_.tokenAllocation, _roundTotalAllocated);
+        return _subZero(round_.allocation, _roundTotalAllocated);
     }
 
     /**

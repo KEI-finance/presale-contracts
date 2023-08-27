@@ -10,7 +10,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol"
 
 import "stargate/IStargateRouter.sol";
 
-import "./IPresale.sol";
+import "./interfaces/IPresale.sol";
 
 /**
  * @notice Implementation of the {IPresale} interface.
