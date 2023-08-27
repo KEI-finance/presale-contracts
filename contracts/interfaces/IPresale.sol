@@ -111,6 +111,9 @@ interface IPresale {
         uint256 costAssets;
     }
 
+    /**
+     * @dev Cache structure to save on stack size too deep errors
+     */
     struct PurchaseCache {
         uint256 totalTokenAllocation;
         uint256 totalLiquidityAllocation;
