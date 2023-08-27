@@ -33,7 +33,16 @@ forge coverage
 
 ## Deploying
 
-Supported networks `goerli` `arbitrumGoerli`
+Supported networks `goerli` `arbitrumOne`
+
+Create a `.env` and fill it out
+
+```env
+cp .env.example .env
+vim .env
+```
+
+Deploy the contracts
 ```
 npx hardhat run scripts/deploy.ts --network {network}
 ```
