@@ -6,7 +6,7 @@ import "../interfaces/IPresale.sol";
 
 interface IPresaleErrors {
     enum PresaleState {
-        PENDING,
+        NOT_STARTED,
         OPEN,
         CLOSED
     }
@@ -15,7 +15,7 @@ interface IPresaleErrors {
     error PresaleInvalidContract(address target);
     error PresaleInvalidAddress(address target);
     error PresaleInvalidStartDate(uint256 startDate, uint256 currentDate);
-    error PresaleInvalidPurchase(IPresale.PurchaseConfig config, IPresale.Receipt receipt);
+    error PresaleInvalidPurchase(address account, uint256 assetAmount, IPresale.Receipt receipt);
     error PresaleInsufficientRounds();
     error PresaleInsufficientAmount(uint256 received, uint256 min);
     error PresaleInsufficientAllocation(uint256 received, uint256 min);

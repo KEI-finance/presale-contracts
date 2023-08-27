@@ -3,6 +3,7 @@
 pragma solidity =0.8.19;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -18,6 +19,7 @@ import "./interfaces/IPresale.sol";
 contract PresaleRouter {
     using Address for address payable;
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     uint256 public immutable STARGATE_POOL_ID;
 
@@ -34,7 +36,6 @@ contract PresaleRouter {
         uint16 chainId,
         uint16 presaleChainId,
         uint256 stargatePoolId,
-
         IPresale presale,
         ISwapRouter swapRouter,
         IStargateRouter stargateRouter
@@ -54,33 +55,33 @@ contract PresaleRouter {
     }
 
     function purchase(ISwapRouter.ExactInputParams memory params) external payable {
-        IPresale.PurchaseConfig memory config;
-        config.account = params.recipient;
+        address account = params.recipient;
+        uint128 assetAmount;
 
         // if there is no path we can assume that they are using the token directly
         if (params.path.length > 0) {
             // we need to receive the endAsset so that we can do the presale purchase
             params.recipient = address(this);
-            config.amountAsset = _swap(params);
+            assetAmount = _swap(params).toUint128();
         } else {
             // we need to transfer to this contract so we can purchase
             PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), params.amountIn);
-            config.amountAsset = params.amountIn;
+            assetAmount = params.amountIn.toUint128();
         }
 
         if (CHAIN_ID == PRESALE_CHAIN_ID) {
-            PRESALE.purchase(config);
+            PRESALE.purchase(account, assetAmount);
         } else {
             STARGATE_ROUTER.swap(
                 PRESALE_CHAIN_ID,
                 STARGATE_POOL_ID,
                 STARGATE_POOL_ID,
-                payable(config.account),
-                config.amountAsset,
-                config.amountAsset,
+                payable(account),
+                assetAmount,
+                assetAmount,
                 IStargateRouter.lzTxObj(0, 0, "0x"),
                 abi.encodePacked(PRESALE),
-                abi.encodeWithSelector(IPresale.purchase.selector, config)
+                abi.encodeWithSelector(IPresale.purchase.selector, account, assetAmount)
             );
         }
     }

@@ -40,19 +40,29 @@ interface IPresale {
      * @notice Emitted when a purchase in a round is made.
      * @param receiptId The ID of the receipt that this purchase is tied to.
      * @param roundIndex The round index that the purchase was made in.
-     * @param amountAsset The assets value of the tokens purchased.
+     * @param account The account who will receive the tokens.
+     * @param assetAmount The amount of assets to purchase with.
      * @param tokensAllocated The number of tokens allocated to the purchaser.
      */
-    event Purchase(uint256 indexed receiptId, uint256 indexed roundIndex, uint256 amountAsset, uint256 tokensAllocated);
+    event Purchase(
+        uint256 indexed receiptId,
+        uint256 indexed roundIndex,
+        address indexed account,
+        uint256 assetAmount,
+        uint256 tokensAllocated
+    );
 
     /**
      * @notice Emitted when a purchase is made.
      * @param id The receipt ID.
-     * @param purchase The purchase configuration.
+     * @param account The account who will receive the tokens.
+     * @param assetAmount The amount of assets to purchase with.
      * @param receipt The receipt details.
      * @param sender The message sender that triggered the event.
      */
-    event PurchaseReceipt(uint256 indexed id, PurchaseConfig purchase, Receipt receipt, address indexed sender);
+    event PurchaseReceipt(
+        uint256 indexed id, address indexed account, uint256 assetAmount, Receipt receipt, address indexed sender
+    );
 
     /**
      * @notice Presale Configuration structure.
@@ -61,8 +71,8 @@ interface IPresale {
      * @param startDate The unix timestamp marking the start of the presale.
      */
     struct PresaleConfig {
-        uint128 minDepositAmount;
-        uint128 maxUserAllocation;
+        uint256 minDepositAmount;
+        uint256 maxUserAllocation;
         uint48 startDate;
     }
 
@@ -73,17 +83,17 @@ interface IPresale {
      * @param roundType The type of the round.
      */
     struct RoundConfig {
-        uint128 price;
-        uint128 allocation;
+        uint256 price;
+        uint256 allocation;
     }
 
     /**
      * @notice Purchase Configuration structure.
-     * @param amountAsset The amount of the asset the user intends to spend.
+     * @param assetAmount The amount of the asset the user intends to spend.
      * @param account The account that will be be allocated tokens.
      */
     struct PurchaseConfig {
-        uint256 amountAsset;
+        uint256 assetAmount;
         address account;
     }
 
@@ -197,9 +207,9 @@ interface IPresale {
      * @notice Returns the conversion from tokens to assets.
      * @param amount The amount of tokens to convert.
      * @param price The price of tokens - based on the current round price set by admin.
-     * @return amountAsset The assets value of the input tokens.
+     * @return assetAmount The assets value of the input tokens.
      */
-    function tokensToAssets(uint256 amount, uint256 price) external pure returns (uint256 amountAsset);
+    function tokensToAssets(uint256 amount, uint256 price) external pure returns (uint256 assetAmount);
 
     /**
      * @notice Closes the Presale early, before all the rounds have been complete
@@ -219,7 +229,8 @@ interface IPresale {
 
     /**
      * @notice Purchases tokens for `account`, by spending PRESALE_ASSETs
-     * @param purchaseConfig The details for the purchase
+     * @param account The account who will receive the tokens.
+     * @param assetAmount The amount of assets to purchase with.
      * @custom:emits Purchase - for each round that the purchase is made within
      * @custom:emits PurchaseReceipt
      * @custom:requirement The contract must not be ended.
@@ -230,7 +241,7 @@ interface IPresale {
      * @custom:requirement The number of tokens allocated to `account` must be greater than zero.
      * @return The receipt.
      */
-    function purchase(PurchaseConfig calldata purchaseConfig) external returns (Receipt memory);
+    function purchase(address account, uint256 assetAmount) external returns (Receipt memory);
 
     /**
      * @notice Initializes the presale contract with the given configurations
@@ -239,5 +250,5 @@ interface IPresale {
      * @param newRounds the round configuration for the presale
      */
     function initialize(address newWithdrawTo, PresaleConfig memory newConfig, RoundConfig[] memory newRounds)
-    external;
+        external;
 }

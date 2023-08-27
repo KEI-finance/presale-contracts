@@ -10,7 +10,5 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
  * @notice A fund raising contract for initial token offering.
  */
 interface IPresaleRouter {
-
-
     function purchase(ISwapRouter.ExactInputParams memory params) external payable;
 }

@@ -45,6 +45,7 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
     function setUp() public virtual {
         vm.label(address(presaleAsset), "USDT");
 
+        vm.warp(presaleConfig.startDate - 1);
         vm.prank(OWNER);
         presale.initialize(WITHDRAW_TO, presaleConfig, rounds);
     }
@@ -77,6 +78,23 @@ contract PresaleTest is UniswapV3Test, IPresaleErrors {
         for (uint256 i = 0; i < rounds.length; i++) {
             totalTokenAllocation += rounds[i].allocation;
         }
+    }
+
+    function _remainingAssetAllocation() internal view returns (uint256 remainingAssetAllocation) {
+        return _remainingAssetAllocation(presale.totalRounds());
+    }
+
+    function _remainingAssetAllocation(uint256 _maxRounds) internal view returns (uint256 remainingAssetAllocation) {
+        uint256 totalRounds = presale.totalRounds();
+        for (uint256 i = presale.currentRoundIndex(); i < totalRounds && i < _maxRounds; i++) {
+            remainingAssetAllocation = _remainingRoundAssetAllocation(i);
+        }
+    }
+
+    function _remainingRoundAssetAllocation(uint256 roundIndex) internal view returns (uint256 remainingAssetAllocation) {
+        uint256 tokensAllocated = presale.roundTokensAllocated(roundIndex);
+        IPresale.RoundConfig memory round = presale.round(roundIndex);
+        remainingAssetAllocation += round.allocation > tokensAllocated ? round.allocation  - tokensAllocated : 0;
     }
 
     function _createRoundConfig(uint256 price, uint256 tokenAllocation)
@@ -121,8 +139,6 @@ contract PresaleTest__initialize is PresaleTest {
         assertEq0(abi.encode(presale.rounds()), abi.encode(rounds));
 
         assertEq(presaleToken.balanceOf(address(presale)), _totalTokenAllocation());
-
-
     }
 
     function test_reverts_whenCalledMoreThanOnce() external {
@@ -228,7 +244,7 @@ contract PresaleTest__close is PresaleTest {
     }
 
     function test_reverts_whenCalledByNonOwner() external {
-        vm.expectRevert('Ownable: caller is not the owner');
+        vm.expectRevert("Ownable: caller is not the owner");
         presale.close();
     }
 }
@@ -251,7 +267,7 @@ contract PresaleTest__setWithdrawTo is PresaleTest {
     }
 
     function test_reverts_whenNotCalledByOwner(address newWithdrawTo) external {
-        vm.expectRevert('Ownable: caller is not the owner');
+        vm.expectRevert("Ownable: caller is not the owner");
         presale.setWithdrawTo(newWithdrawTo);
     }
 
@@ -259,5 +275,82 @@ contract PresaleTest__setWithdrawTo is PresaleTest {
         vm.expectRevert(abi.encodeWithSelector(PresaleInvalidAddress.selector, WITHDRAW_TO));
         vm.prank(OWNER);
         presale.setWithdrawTo(WITHDRAW_TO);
+    }
+}
+
+contract PresaleTest__purchase is PresaleTest {
+    function setUp() public override virtual {
+        super.setUp();
+
+        vm.warp(presaleConfig.startDate);
+        vm.prank(ALICE);
+        presaleAsset.approve(address(presale), type(uint256).max);
+    }
+
+    function test_success(address account, uint128 assetAmount) external {
+        uint256 price = presale.round(0).price;
+        vm.assume(presale.assetsToTokens(assetAmount, price) > 0 && account != address(0));
+
+        presaleAsset.mint(ALICE, assetAmount);
+        vm.prank(ALICE);
+        IPresale.Receipt memory receipt = presale.purchase(account, assetAmount);
+
+        assertEq(presaleToken.balanceOf(account), receipt.tokensAllocated);
+        assertEq(presaleAsset.balanceOf(ALICE), receipt.refundedAssets);
+        assertEq(presaleAsset.balanceOf(WITHDRAW_TO), receipt.costAssets);
+    }
+
+    function test_reverts_whenAccountIsAZeroAddress() external {
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidAddress.selector, address(0)));
+        presale.purchase(address(0), 1000);
+    }
+
+    function test_reverts_whenBlockTimestampIsLessThanStartDate() external {
+        vm.warp(presaleConfig.startDate - 1);
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidState.selector, PresaleState.NOT_STARTED));
+        presale.purchase(ALICE, 1000);
+    }
+
+    function test_reverts_whenAssetAmountIsZero() external {
+        assertEq(presale.config().minDepositAmount, 0);
+        vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientAmount.selector, 0, 1));
+        presale.purchase(ALICE, 0);
+    }
+
+    function test_reverts_whenAssetAmountIsLessThanMinDepositAmount() external {
+        presaleConfig.minDepositAmount = 100;
+
+        _createContracts();
+        setUp();
+
+        assertEq(presale.config().minDepositAmount, 100);
+
+        presaleAsset.mint(ALICE, 50);
+        vm.expectRevert(abi.encodeWithSelector(PresaleInsufficientAmount.selector, 50, 100));
+        presale.purchase(ALICE, 50);
+    }
+
+    function test_reverts_whenClosed() external {
+        vm.prank(OWNER);
+        presale.close();
+
+        presaleAsset.mint(ALICE, 100);
+
+        vm.expectRevert(abi.encodeWithSelector(PresaleInvalidState.selector, PresaleState.CLOSED));
+        vm.prank(ALICE);
+        presale.purchase(ALICE, 100);
+    }
+
+    function test_success_whenPurchasingMaximumAllocation(address account, uint64 refundedAmount) external {
+        uint256 assetAmount = _remainingAssetAllocation() + refundedAmount;
+
+        presaleAsset.mint(ALICE, assetAmount);
+        vm.prank(ALICE);
+        presale.purchase(account, assetAmount);
+
+    }
+
+    function test_success_whenPurchasingOneRoundAtATime() external {
+
     }
 }

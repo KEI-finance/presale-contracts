@@ -82,26 +82,24 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
     /**
      * @inheritdoc IPresale
      */
-    function purchase(PurchaseConfig calldata purchaseConfig)
+    function purchase(address account, uint256 assetAmount)
         external
         override
         nonReentrant
         returns (Receipt memory receipt)
     {
-        if (purchaseConfig.account == address(0)) {
-            revert PresaleInvalidAddress(purchaseConfig.account);
+        if (account == address(0)) {
+            revert PresaleInvalidAddress(account);
         }
 
         PresaleConfig memory _config = $config;
 
         if (block.timestamp < _config.startDate) {
-            revert PresaleInvalidState(PresaleState.PENDING);
+            revert PresaleInvalidState(PresaleState.NOT_STARTED);
         }
 
-        if (purchaseConfig.amountAsset == 0 || purchaseConfig.amountAsset < _config.minDepositAmount) {
-            revert PresaleInsufficientAmount(
-                purchaseConfig.amountAsset, _config.minDepositAmount == 0 ? 1 : _config.minDepositAmount
-            );
+        if (assetAmount == 0 || assetAmount < _config.minDepositAmount) {
+            revert PresaleInsufficientAmount(assetAmount, _config.minDepositAmount == 0 ? 1 : _config.minDepositAmount);
         }
 
         if ($closed) {
@@ -113,8 +111,8 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
         PurchaseCache memory _c;
         _c.totalRounds = $rounds.length;
         _c.currentIndex = $currentRoundIndex;
-        _c.remainingAssets = purchaseConfig.amountAsset;
-        _c.userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[purchaseConfig.account];
+        _c.remainingAssets = assetAmount;
+        _c.userAllocationRemaining = _config.maxUserAllocation - $userTokensAllocated[account];
 
         while (_c.currentIndex < _c.totalRounds && _c.remainingAssets > 0 && _c.userAllocationRemaining > 0) {
             RoundConfig memory _round = $rounds[_c.currentIndex];
@@ -138,7 +136,7 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
 
                 $roundTokensAllocated[_c.currentIndex] += _c.userAllocation;
 
-                emit Purchase(receipt.id, _c.currentIndex, _costAssets, _c.userAllocation);
+                emit Purchase(receipt.id, _c.currentIndex, account, _costAssets, _c.userAllocation);
             }
 
             // if we have used everything then lets increment current index. and only increment if we are not on the last round.
@@ -154,14 +152,14 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
         }
 
         unchecked {
-            $totalRaised += purchaseConfig.amountAsset - _c.remainingAssets;
+            $totalRaised += assetAmount - _c.remainingAssets;
             $currentRoundIndex = _c.currentIndex;
-            $userTokensAllocated[purchaseConfig.account] = _config.maxUserAllocation - _c.userAllocationRemaining;
+            $userTokensAllocated[account] = _config.maxUserAllocation - _c.userAllocationRemaining;
         }
 
         receipt.refundedAssets = _c.remainingAssets;
         receipt.tokensAllocated = _c.totalTokenAllocation;
-        receipt.costAssets = purchaseConfig.amountAsset - receipt.refundedAssets;
+        receipt.costAssets = assetAmount - receipt.refundedAssets;
 
         if (receipt.tokensAllocated == 0) {
             revert PresaleInsufficientAllocation(receipt.tokensAllocated, 1);
@@ -169,18 +167,18 @@ contract Presale is IPresale, IPresaleErrors, Ownable2Step, Initializable, Reent
 
         // edge case to prevent the user from getting free tokens
         if (receipt.tokensAllocated > 0 && receipt.costAssets == 0) {
-            revert PresaleInvalidPurchase(purchaseConfig, receipt);
+            revert PresaleInvalidPurchase(account, assetAmount, receipt);
         }
 
         if (receipt.refundedAssets > 0) {
-            _sendAssets(purchaseConfig.account, receipt.refundedAssets);
+            _sendAssets(account, receipt.refundedAssets);
         }
 
         if (receipt.costAssets > 0) {
             _sendAssets($withdrawTo, receipt.costAssets);
         }
 
-        emit PurchaseReceipt(receipt.id, purchaseConfig, receipt, _msgSender());
+        emit PurchaseReceipt(receipt.id, account, assetAmount, receipt, _msgSender());
     }
 
     /**
