@@ -6,13 +6,13 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol";
 
 import "stargate/IStargateRouter.sol";
 import "stargate/IStargateReceiver.sol";
 
+import "./interfaces/external/IWETH9.sol";
 import "./interfaces/IPresale.sol";
 
 /**
@@ -29,7 +29,7 @@ contract PresaleRouter is IStargateReceiver {
     IERC20 public immutable PRESALE_ASSET;
     ISwapRouter public immutable SWAP_ROUTER;
     IStargateRouter public immutable STARGATE_ROUTER;
-    IWETH9 public immutable WETH9;
+    IWETH9 public immutable WETH;
 
     uint16 public immutable CHAIN_ID;
     uint16 public immutable PRESALE_CHAIN_ID;
@@ -50,7 +50,7 @@ contract PresaleRouter is IStargateReceiver {
         PRESALE_ASSET = presale.PRESALE_ASSET();
         SWAP_ROUTER = swapRouter;
         STARGATE_ROUTER = stargateRouter;
-        WETH9 = IWETH9(IPeripheryImmutableState(address(swapRouter)).WETH9());
+        WETH = IWETH9(IPeripheryImmutableState(address(swapRouter)).WETH9());
 
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
         PRESALE_ASSET.approve(address(STARGATE_ROUTER), type(uint256).max);
@@ -111,13 +111,13 @@ contract PresaleRouter is IStargateReceiver {
         require(endAsset == address(PRESALE_ASSET), "INVALID_SWAP_PATH");
 
         // if it is not the weth contract or there is no msg value then we must assume it is a token
-        if (startAsset != WETH9 || address(this).balance == 0) {
+        if (startAsset != address(WETH) || address(this).balance == 0) {
             IERC20(startAsset).safeTransferFrom(msg.sender, address(this), params.amountIn);
             IERC20(startAsset).approve(address(SWAP_ROUTER), params.amountIn);
         }
 
         // attempt to swap any assets
-        return SWAP_ROUTER.exactInput{value: msg.value}(params);
+        return SWAP_ROUTER.exactInput{value: address(this).balance}(params);
     }
 
     function _deconstructPath(bytes memory path) private pure returns (address firstAddress, address lastAddress) {
