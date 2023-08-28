@@ -41,6 +41,16 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.POLYGON_ETHERSCAN_API_KEY!,
     },
   },
+  package: {
+    copy: [
+      {
+        src: "deployments.ts",
+        dest: "deployments.ts",
+        exported: true,
+        exportedAs: "deployments",
+      },
+    ],
+  },
 };
 
 export default config;
