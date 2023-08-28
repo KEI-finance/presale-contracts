@@ -52,6 +52,7 @@ async function main() {
   }
 
   // goerli configuration
+  console.log("deploying router");
 
   const presaleRouter = await presaleRouterFactory.deploy(
     environment.chainId,

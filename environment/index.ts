@@ -19,7 +19,7 @@ let environment = {
 try {
   environment = {
     ...environment,
-    ...require(path.join(__dirname, hre.network.name + ".ts")),
+    ...require(path.join(__dirname, hre.network.name + ".ts")).environment,
   };
 } catch (e) {
   console.log("unknown environment " + hre.network.name);

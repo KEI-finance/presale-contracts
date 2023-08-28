@@ -21,6 +21,7 @@ import "./interfaces/IPresaleRouter.sol";
  */
 contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     using Address for address payable;
+    using Address for address;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
@@ -48,6 +49,10 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         IStargateRouter stargateRouter,
         address stargateReceiver
     ) {
+        require(address(presale).isContract(), 'INVALID_PRESALE_ADDRESS');
+        require(address(swapRouter).isContract(), 'INVALID_SWAP_ROUTER_ADDRESS');
+        require(address(stargateRouter).isContract(), 'INVALID_STARGATE_ROUTER_ADDRESS');
+
         CHAIN_ID = chainId;
         PRESALE_CHAIN_ID = presaleChainId;
 
@@ -55,6 +60,7 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         STARGATE_ROUTER = stargateRouter;
         STARGATE_RECEIVER = CHAIN_ID == PRESALE_CHAIN_ID ? address(this) : stargateReceiver;
         STARGATE_GAS = stargateGas;
+
 
         PRESALE = presale;
         PRESALE_ASSET = presale.PRESALE_ASSET();
@@ -141,6 +147,8 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     }
 
     function quoteStargate(address account) public view returns (uint256 expectedFee) {
+        if (CHAIN_ID == PRESALE_CHAIN_ID) return 0;
+
         (expectedFee,) = STARGATE_ROUTER.quoteLayerZeroFee(
             PRESALE_CHAIN_ID,
             1, // function type 1 for swap

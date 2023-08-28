@@ -24,7 +24,6 @@ contract PresaleRouterTest is UniswapV3Test, PresaleTest {
         presaleAsset.mint(address(this), totalAssets);
         presaleAsset.transfer(address(router), totalAssets);
 
-        console.log(totalAssets);
         uint256 gasLeft = gasleft();
         router.sgReceive(0, abi.encodePacked(address(this)), 0, address(presaleAsset), totalAssets, abi.encode(ALICE));
         assertLt(gasLeft - gasleft(), 500_000); // less than 500k gas allowed
