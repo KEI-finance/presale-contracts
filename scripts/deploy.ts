@@ -42,7 +42,7 @@ async function main() {
   console.log("initializing");
 
   await presale
-    .initialize(environment.swapRouter, config, rounds)
+    .initialize(environment.withdrawTo, config, rounds)
     .then((tx) => tx.wait());
 
   console.log("verifying");
