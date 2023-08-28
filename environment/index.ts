@@ -3,18 +3,23 @@ import path from "path";
 
 let environment = {
   stargateRouter: "",
+  stargateReceiver: "",
   presaleAsset: "",
   swapRouter: "",
   withdrawTo: "",
   presale: "",
   owner: "",
-  stargatePoolId: 0,
+  stargateGas: 500_000,
+  stargatePoolId: 2,
   chainId: 0,
   presaleChainId: 0,
 };
 
 try {
-  ({ environment } = require(path.join(__dirname, hre.network.name + ".ts")));
+  environment = {
+    ...environment,
+    ...require(path.join(__dirname, hre.network.name + ".ts")),
+  };
 } catch (e) {
   console.log("unknown environment " + hre.network.name);
 }

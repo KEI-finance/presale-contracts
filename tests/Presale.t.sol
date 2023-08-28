@@ -304,17 +304,22 @@ contract PresaleTest__purchase is PresaleTest {
         presaleAsset.approve(address(presale), type(uint256).max);
     }
 
-    function test_success(address[3] calldata accounts, address[3] calldata senders, uint128[3] calldata assetAmounts) external {
+    function test_success(address[3] calldata accounts, address[3] calldata senders, uint128[3] calldata assetAmounts)
+        external
+    {
         bool runsAtLeastOnce = false;
 
-        for (uint i = 0; i < accounts.length; i++) {
+        for (uint256 i = 0; i < accounts.length; i++) {
             uint256 price = presale.round(presale.currentRoundIndex()).price;
 
             address sender = senders[i];
             address account = accounts[i];
             uint256 assetAmount = assetAmounts[i];
 
-            if (presale.assetsToTokens(assetAmount, price) == 0 || account == address(0) || sender == address(0) || presale.closed()) {
+            if (
+                presale.assetsToTokens(assetAmount, price) == 0 || account == address(0) || sender == address(0)
+                    || presale.closed()
+            ) {
                 continue;
             }
 

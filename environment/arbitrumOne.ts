@@ -5,7 +5,6 @@ export const environment = {
   withdrawTo: "",
   presale: "",
   owner: "",
-  stargatePoolId: 2,
   chainId: 0,
   presaleChainId: 0,
 };

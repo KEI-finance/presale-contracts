@@ -5,7 +5,6 @@ export const environment = {
   withdrawTo: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3",
   presale: "",
   owner: "0x921d360aD22A6D0289ce57fcb8250e299cB19EA3",
-  stargatePoolId: 2,
   chainId: 10102,
   presaleChainId: 10143,
 };

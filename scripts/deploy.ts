@@ -57,9 +57,11 @@ async function main() {
     environment.chainId,
     environment.presaleChainId,
     environment.stargatePoolId,
+    environment.stargateGas,
     presale?.address || environment.presale,
     environment.swapRouter,
-    environment.stargateRouter
+    environment.stargateRouter,
+    environment.stargateGas
   );
 
   console.log(`PresaleRouter @ ${presaleRouter.address}`);
@@ -93,9 +95,11 @@ async function main() {
       environment.chainId,
       environment.presaleChainId,
       environment.stargatePoolId,
+      environment.stargateGas,
       presale?.address || environment.presale,
       environment.swapRouter,
       environment.stargateRouter,
+      environment.stargateGas,
     ],
   });
 
