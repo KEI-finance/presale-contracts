@@ -45,11 +45,11 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         uint256 stargatePoolId,
         uint256 stargateGas,
         IPresale presale,
+        IERC20 presaleAsset,
         ISwapRouter swapRouter,
         IStargateRouter stargateRouter,
         address stargateReceiver
     ) {
-        require(address(presale).isContract(), 'INVALID_PRESALE_ADDRESS');
         require(address(swapRouter).isContract(), 'INVALID_SWAP_ROUTER_ADDRESS');
         require(address(stargateRouter).isContract(), 'INVALID_STARGATE_ROUTER_ADDRESS');
 
@@ -61,9 +61,8 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         STARGATE_RECEIVER = CHAIN_ID == PRESALE_CHAIN_ID ? address(this) : stargateReceiver;
         STARGATE_GAS = stargateGas;
 
-
         PRESALE = presale;
-        PRESALE_ASSET = presale.PRESALE_ASSET();
+        PRESALE_ASSET = presaleAsset;
         SWAP_ROUTER = swapRouter;
         WETH = IWETH9(IPeripheryImmutableState(address(swapRouter)).WETH9());
 

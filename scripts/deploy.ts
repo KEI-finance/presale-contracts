@@ -10,6 +10,8 @@ import hre, { ethers } from "hardhat";
 import { config, rounds, totalTokenAllocation } from "../config";
 import environment from "../environment";
 
+console.log(environment);
+
 async function main() {
   const [signer] = await ethers.getSigners();
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
@@ -60,6 +62,7 @@ async function main() {
     environment.stargatePoolId,
     environment.stargateGas,
     presale?.address || environment.presale,
+    environment.presaleAsset,
     environment.swapRouter,
     environment.stargateRouter,
     environment.stargateReceiver
@@ -98,6 +101,7 @@ async function main() {
       environment.stargatePoolId,
       environment.stargateGas,
       presale?.address || environment.presale,
+      environment.presaleAsset,
       environment.swapRouter,
       environment.stargateRouter,
       environment.stargateReceiver,
