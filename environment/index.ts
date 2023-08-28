@@ -1,14 +1,15 @@
 import hre from "hardhat";
 import path from "path";
+import { constants } from "ethers";
 
 let environment = {
-  stargateRouter: "",
-  stargateReceiver: "",
-  presaleAsset: "",
-  swapRouter: "",
-  withdrawTo: "",
-  presale: "",
-  owner: "",
+  stargateReceiver: constants.AddressZero,
+  stargateRouter: constants.AddressZero,
+  presaleAsset: constants.AddressZero,
+  swapRouter: constants.AddressZero,
+  withdrawTo: constants.AddressZero,
+  presale: constants.AddressZero,
+  owner: constants.AddressZero,
   stargateGas: 500_000,
   stargatePoolId: 2,
   chainId: 0,

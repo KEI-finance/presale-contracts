@@ -1,4 +1,5 @@
 export const environment = {
+  stargateReceiver: "",
   stargateRouter: "0xbB0f1be1E9CE9cB27EA5b0c3a85B7cc3381d8176",
   presaleAsset: "0xF49E250aEB5abDf660d643583AdFd0be41464EfD",
   swapRouter: "", // Unknown

@@ -61,7 +61,7 @@ async function main() {
     presale?.address || environment.presale,
     environment.swapRouter,
     environment.stargateRouter,
-    environment.stargateGas
+    environment.stargateReceiver
   );
 
   console.log(`PresaleRouter @ ${presaleRouter.address}`);
@@ -99,7 +99,7 @@ async function main() {
       presale?.address || environment.presale,
       environment.swapRouter,
       environment.stargateRouter,
-      environment.stargateGas,
+      environment.stargateReceiver,
     ],
   });
 
