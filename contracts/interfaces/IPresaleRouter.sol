@@ -6,14 +6,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 import "./IPresale.sol";
 
-/**
- * @title KEI Finance Presale Contract.
- * @author KEI Finance
- * @notice A fund raising contract for initial token offering.
- */
 interface IPresaleRouter {
-    event SendStargate();
-
     // the remote chainId sending the tokens
     // the remote Bridge address
     // the token contract on the local chain
@@ -29,5 +22,11 @@ interface IPresaleRouter {
         bytes error
     );
 
-    function purchase(ISwapRouter.ExactInputParams memory params) external payable;
+    struct PurchaseParams {
+        address account;
+        uint256 assetAmount;
+        address referrer;
+    }
+
+    function purchase(PurchaseParams memory params) external;
 }

@@ -1,6 +1,7 @@
 import {
   PlaceholderToken__factory,
-  Presale__factory, PresaleRouter__factory,
+  Presale__factory,
+  PresaleRouter__factory,
 } from "../typechain-types";
 import { Signer } from "ethers";
 import hre, { ethers } from "hardhat";
@@ -13,7 +14,9 @@ async function main() {
   const placeholderFactory = new PlaceholderToken__factory(
     signer as unknown as Signer
   );
-  const presaleRouterFactory = new PresaleRouter__factory(signer as unknown as Signer);
+  const presaleRouterFactory = new PresaleRouter__factory(
+    signer as unknown as Signer
+  );
 
   const presaleToken = await placeholderFactory.deploy(
     signer.address,
@@ -46,6 +49,12 @@ async function main() {
     .initialize(environment.withdrawTo, config, rounds)
     .then((tx) => tx.wait());
 
+  const presaleRouter = await presaleRouterFactory.deploy(presale.address);
+
+  console.log("PresaleRouter @", presaleRouter.address);
+
+  await presaleRouter.deployed();
+
   console.log("verifying");
 
   await new Promise((res) => setTimeout(res, 30000));
@@ -62,6 +71,11 @@ async function main() {
       presaleToken.address,
       environment.owner,
     ],
+  });
+
+  await hre.run("verify:verify", {
+    address: presaleRouter.address,
+    constructorArguments: [presaleRouter.address],
   });
 
   console.log("completed");

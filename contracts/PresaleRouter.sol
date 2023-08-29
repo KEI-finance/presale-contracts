@@ -11,7 +11,7 @@ import "./interfaces/IPresaleRouter.sol";
 /**
  * @notice Implementation of the {IPresaleRouter} interface.
  */
-contract PresaleRouter is IStargateReceiver {
+contract PresaleRouter is IPresaleRouter, IStargateReceiver {
     using SafeERC20 for IERC20;
 
     IPresale public immutable PRESALE;
@@ -23,27 +23,25 @@ contract PresaleRouter is IStargateReceiver {
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
     }
 
-    function sgReceive(
-        uint16 srcChainId,              // the remote chainId sending the tokens
-        bytes memory srcAddress,        // the remote Bridge address
-        uint256 nonce,
-        address token,                  // the token contract on the local chain
-        uint256 amountLD,                // the qty of local _token contract tokens
-        bytes memory payload
-    ) external {
-        (address account, address referrer) = abi.decode(payload, (address, address));
-        purchase(account, amountLD, referrer);
+    function sgReceive(uint16, bytes memory, uint256, address, uint256 assetAmount, bytes memory payload)
+        external
+        override
+    {
+        PurchaseParams memory params = abi.decode(payload, (PurchaseParams));
+        purchase(params);
     }
 
-    function purchase(address account, uint256 amount, address referrer) public {
+    function purchase(PurchaseParams memory params) public override {
         uint256 currentBalance = PRESALE_ASSET.balanceOf(address(this));
-        if (currentBalance < amount) {
-            PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), amount - currentBalance);
+        if (currentBalance < params.assetAmount) {
+            PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), params.assetAmount - currentBalance);
         }
-        try PRESALE.purchase(account, amount) {
+
+        try PRESALE.purchase(params.account, params.assetAmount) {
             return;
         } catch {
-            PRESALE_ASSET.safeTransfer(account, amount);
+            // in the event the purchase failed then send the assets to the account
+            PRESALE_ASSET.safeTransfer(params.account, params.assetAmount);
         }
     }
 }
