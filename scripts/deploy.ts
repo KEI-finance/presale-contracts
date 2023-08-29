@@ -53,7 +53,7 @@ async function main() {
 
   const { presale, stargate } = environment;
 
-  if (presale) {
+  if (presale.withdrawTo) {
     await deployPresaleContracts(signer, presale);
   }
 
@@ -84,6 +84,8 @@ async function deployPresaleContracts(
   console.log("PresaleToken @ ", presaleToken.address);
 
   await presaleToken.deployed();
+
+  await new Promise((res) => setTimeout(res, 30000));
 
   // goerli configuration
   const presale = await presaleFactory.deploy(
