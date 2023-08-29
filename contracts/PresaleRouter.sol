@@ -26,19 +26,6 @@ contract PresaleRouter is IPresaleRouter {
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
     }
 
-    function sgReceive(
-        uint16 srcChainId, // the remote chainId sending the tokens
-        bytes memory srcAddress, // the remote Bridge address
-        uint256 nonce,
-        address token, // the token contract on the local chain
-        uint256 amountLD, // the qty of local _token contract tokens
-        bytes memory payload
-    ) external override {
-        emit ReceiveStargate(srcChainId, srcAddress, nonce, token, amountLD, payload);
-        PurchaseParams memory _params = abi.decode(payload, (PurchaseParams));
-        purchase(_params);
-    }
-
     function purchase(PurchaseParams memory params) public override {
         uint256 _currentBalance = PRESALE_ASSET.balanceOf(address(this));
         if (_currentBalance < params.assetAmount) {
