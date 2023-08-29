@@ -32,12 +32,6 @@ contract PresaleRouter is IPresaleRouter {
             PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), params.assetAmount - _currentBalance);
         }
 
-        try REFERRALS.register(params.account, params.referrer) {
-            // do nothing also
-        } catch {
-            // do nothing
-        }
-
         bool _success;
         IPresale.Receipt memory _receipt;
         try PRESALE.purchase(params.account, params.assetAmount) returns (IPresale.Receipt memory receipt) {
@@ -46,6 +40,14 @@ contract PresaleRouter is IPresaleRouter {
         } catch {
             // in the event the purchase failed then send the assets to the account
             PRESALE_ASSET.safeTransfer(params.account, params.assetAmount);
+        }
+
+        if (_success) {
+            try REFERRALS.register(params.account, params.referrer) {
+                // do nothing also
+            } catch {
+                // do nothing
+            }
         }
 
         emit PurchaseResult(params, _success, _receipt, msg.sender);
