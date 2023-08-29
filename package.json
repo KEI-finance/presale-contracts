@@ -22,7 +22,6 @@
     "@types/node": "^20.3.1",
     "chai": "^4.2.0",
     "dotenv": "^16.3.1",
-    "ethers": "^5.7.2",
     "hardhat": "^2.16.0",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-package": "^1.0.0-beta.16",
@@ -37,6 +36,7 @@
     "@uniswap/swap-router-contracts": "^1.3.0",
     "@uniswap/universal-router": "^1.4.3",
     "@uniswap/v3-core": "^1.0.1",
-    "@uniswap/v3-periphery": "^1.4.3"
+    "@uniswap/v3-periphery": "^1.4.3",
+    "ethers": "^5.7.2"
   }
 }
