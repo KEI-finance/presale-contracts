@@ -12,15 +12,10 @@ interface IPresaleRouter {
     // the token contract on the local chain
     // the qty of local _token contract tokens
     event ReceiveStargate(
-        uint16 srcChainId,
-        bytes srcAddress,
-        uint256 nonce,
-        address token,
-        uint256 amountLD,
-        bytes payload,
-        bool success,
-        bytes error
+        uint16 srcChainId, bytes srcAddress, uint256 nonce, address token, uint256 amountLD, bytes payload
     );
+
+    event PurchaseResult(PurchaseParams params, bool success, IPresale.Receipt receipt, address indexed sender);
 
     struct PurchaseParams {
         address account;
