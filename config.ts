@@ -7,6 +7,8 @@ export const config: IPresale.PresaleConfigStruct = {
   startDate: BigNumber.from(Math.round(Date.now() / 1000)).add(300),
 };
 
+const EXTRA_TOKEN_ALLOCATION = makeTokens(6e6);
+
 export const makeRounds = (
   decimals: number
 ): {
@@ -43,10 +45,12 @@ export const makeRounds = (
       allocation: makeTokens(12e6),
     },
   ];
-  const totalTokenAllocation = rounds.reduce(
-    (total, current) => total.add(current.allocation),
-    BigNumber.from(0)
-  );
+  const totalTokenAllocation = rounds
+    .reduce(
+      (total, current) => total.add(current.allocation),
+      BigNumber.from(0)
+    )
+    .add(EXTRA_TOKEN_ALLOCATION);
 
   return { rounds, totalTokenAllocation };
 
@@ -55,8 +59,8 @@ export const makeRounds = (
       BigNumber.from(10).pow(decimals - 3)
     );
   }
-
-  function makeTokens(amount: number) {
-    return BigNumber.from(10).pow(8).mul(amount);
-  }
 };
+
+function makeTokens(amount: number) {
+  return BigNumber.from(10).pow(8).mul(amount);
+}
