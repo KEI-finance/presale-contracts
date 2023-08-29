@@ -2,14 +2,72 @@ import {
   PlaceholderToken__factory,
   Presale__factory,
   PresaleRouter__factory,
+  PresaleStargate__factory,
 } from "../typechain-types";
 import { Signer } from "ethers";
 import hre, { ethers } from "hardhat";
 import { config, rounds, totalTokenAllocation } from "../config";
 import environment from "../environment";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+
+async function deployStargateContracts(
+  signer: HardhatEthersSigner,
+  stargate: (typeof environment)["stargate"]
+) {
+  const stargateFactory = new PresaleStargate__factory(
+    signer as unknown as Signer
+  );
+
+  const presaleStargate = await stargateFactory.deploy(
+    stargate.presaleChainId,
+    stargate.stargatePoolId,
+    stargate.stargateGas,
+    stargate.presaleAsset,
+    stargate.swapRouter,
+    stargate.presaleRouter,
+    stargate.stargateRouter
+  );
+
+  console.log("Stargate @", presaleStargate.address);
+
+  await presaleStargate.deployed();
+
+  console.log("verifying");
+
+  await hre.run("verify:verify", {
+    address: presaleStargate.address,
+    constructorArguments: [
+      stargate.presaleChainId,
+      stargate.stargatePoolId,
+      stargate.stargateGas,
+      stargate.presaleAsset,
+      stargate.swapRouter,
+      stargate.presaleRouter,
+      stargate.stargateRouter,
+    ],
+  });
+}
 
 async function main() {
   const [signer] = await ethers.getSigners();
+
+  const { presale, stargate } = environment;
+
+  if (presale) {
+    await deployPresaleContracts(signer, presale);
+  }
+
+  if (stargate) {
+    await deployStargateContracts(signer, stargate);
+  }
+
+  console.log("completed");
+}
+
+async function deployPresaleContracts(
+  signer: HardhatEthersSigner,
+  env: (typeof environment)["presale"]
+) {
   const presaleFactory = new Presale__factory(signer as unknown as Signer);
   const placeholderFactory = new PlaceholderToken__factory(
     signer as unknown as Signer
@@ -29,9 +87,9 @@ async function main() {
 
   // goerli configuration
   const presale = await presaleFactory.deploy(
-    environment.presaleAsset,
+    env.presaleAsset,
     presaleToken.address,
-    environment.owner
+    env.owner
   );
 
   console.log(`Presale @ ${presale.address}`);
@@ -46,7 +104,7 @@ async function main() {
   console.log("initializing");
 
   await presale
-    .initialize(environment.withdrawTo, config, rounds)
+    .initialize(env.withdrawTo, config, rounds)
     .then((tx) => tx.wait());
 
   const presaleRouter = await presaleRouterFactory.deploy(presale.address);
@@ -66,19 +124,13 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: presale.address,
-    constructorArguments: [
-      environment.presaleAsset,
-      presaleToken.address,
-      environment.owner,
-    ],
+    constructorArguments: [env.presaleAsset, presaleToken.address, env.owner],
   });
 
   await hre.run("verify:verify", {
     address: presaleRouter.address,
     constructorArguments: [presaleRouter.address],
   });
-
-  console.log("completed");
 }
 
 main().catch((error) => {
