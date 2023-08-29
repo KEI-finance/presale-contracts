@@ -5,20 +5,23 @@ pragma solidity =0.8.19;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "stargate/IStargateReceiver.sol";
+import "referral-contracts/src/interfaces/IKEIReferrals.sol";
 
 import "./interfaces/IPresaleRouter.sol";
 
 /**
  * @notice Implementation of the {IPresaleRouter} interface.
  */
-contract PresaleRouter is IPresaleRouter, IStargateReceiver {
+contract PresaleRouter is IPresaleRouter {
     using SafeERC20 for IERC20;
 
     IPresale public immutable PRESALE;
     IERC20 public immutable PRESALE_ASSET;
+    IKEIReferrals public immutable REFERRALS;
 
-    constructor(IPresale presale) {
+    constructor(IPresale presale, IKEIReferrals referrals) {
         PRESALE = presale;
+        REFERRALS = referrals;
         PRESALE_ASSET = presale.PRESALE_ASSET();
         PRESALE_ASSET.approve(address(PRESALE), type(uint256).max);
     }
@@ -40,6 +43,12 @@ contract PresaleRouter is IPresaleRouter, IStargateReceiver {
         uint256 _currentBalance = PRESALE_ASSET.balanceOf(address(this));
         if (_currentBalance < params.assetAmount) {
             PRESALE_ASSET.safeTransferFrom(msg.sender, address(this), params.assetAmount - _currentBalance);
+        }
+
+        try REFERRALS.register(params.account, params.referrer) {
+            // do nothing also
+        } catch {
+            // do nothing
         }
 
         bool _success;

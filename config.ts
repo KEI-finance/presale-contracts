@@ -3,8 +3,8 @@ import { BigNumber } from "ethers";
 
 export const config: IPresale.PresaleConfigStruct = {
   minDepositAmount: 0,
-  maxUserAllocation: BigNumber.from(10).pow(14),
-  startDate: BigNumber.from(Math.round(Date.now() / 1000)).add(300),
+  maxUserAllocation: BigNumber.from(10).pow(14), // 1 million tokens
+  startDate: Math.round(Date.parse("2023-08-29T14:00:00.000Z") / 1000),
 };
 export const rounds: IPresale.RoundConfigStruct[] = [
   {
@@ -38,7 +38,7 @@ export const rounds: IPresale.RoundConfigStruct[] = [
 ];
 
 export const totalTokenAllocation = rounds.reduce(
-  (total, current) => total.add(current.price),
+  (total, current) => total.add(current.allocation),
   BigNumber.from(0)
 );
 

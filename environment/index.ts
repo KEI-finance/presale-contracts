@@ -2,20 +2,10 @@ import hre from "hardhat";
 import path from "path";
 
 let environment = {
-  stargate: {
-    swapRouter: "",
-    presaleAsset: "",
-    presaleRouter: "",
-    stargateRouter: "",
-    presaleChainId: 0,
-    stargatePoolId: 0,
-    stargateGas: 500_000,
-  },
-  presale: {
-    presaleAsset: "",
-    withdrawTo: "",
-    owner: "",
-  },
+  referrals: "",
+  presaleAsset: "",
+  withdrawTo: "",
+  owner: "",
 };
 
 try {
@@ -27,14 +17,6 @@ try {
   environment = {
     ...environment,
     ...newEnvironment,
-    stargate: {
-      ...environment.stargate,
-      ...newEnvironment.stargate,
-    },
-    presale: {
-      ...environment.presale,
-      ...newEnvironment.presale,
-    },
   };
 } catch (e) {
   console.log("unknown environment " + hre.network.name);
