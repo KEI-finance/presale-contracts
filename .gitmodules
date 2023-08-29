@@ -4,3 +4,6 @@
 [submodule "lib/testing-lib"]
 	path = lib/testing-lib
 	url = https://github.com/kei-finance/testing-lib
+[submodule "lib/referral-contracts"]
+	path = lib/referral-contracts
+	url = https://github.com/kei-finance/referral-contracts
