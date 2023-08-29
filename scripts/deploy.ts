@@ -57,7 +57,7 @@ async function main() {
     await deployPresaleContracts(signer, presale);
   }
 
-  if (stargate) {
+  if (stargate.presaleRouter) {
     await deployStargateContracts(signer, stargate);
   }
 
@@ -129,7 +129,7 @@ async function deployPresaleContracts(
 
   await hre.run("verify:verify", {
     address: presaleRouter.address,
-    constructorArguments: [presaleRouter.address],
+    constructorArguments: [presale.address],
   });
 }
 
