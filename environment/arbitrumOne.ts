@@ -1,6 +1,6 @@
 export const environment = {
-  referrals: "",
+  referrals: "0xAFC6BD7Aa28CE0CaFC0D708EEBE820549808c6D3",
   presaleAsset: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-  withdrawTo: "",
-  owner: "",
+  withdrawTo: "0x14f552f61CEC9e2b44A31070C32b0838d46Fe24D",
+  owner: "0x11B0e85E8d58A09f7dE795b8b04fF3Db7778ba78",
 };
