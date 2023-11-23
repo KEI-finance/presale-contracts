@@ -9,4 +9,7 @@ export const deployments = {
     presaleRouter: "0x731fd6185Def573cf4B540ae29e8c7584aE55A68",
     presale: "0x3C367B3279c362e0eC57EEb90f7899D6cc1b4D67",
   },
+  mainnet: {
+    placeholderToken: "0x573CB4409C7F02CC59a03abf91445Af0D7d8FD9D",
+  },
 };

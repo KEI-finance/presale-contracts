@@ -18,6 +18,10 @@ const config: HardhatUserConfig = {
       chainId: 421613,
       accounts: [process.env.GOERLI_TESTNET_PRIVATE_KEY!],
     },
+    mainnet: {
+      url: "https://mainnet.infura.io/v3/" + process.env.INFURA_API_KEY,
+      accounts: [process.env.ARBITRUM_MAINNET_PRIVATE_KEY!],
+    },
     arbitrumOne: {
       url: "https://arb1.arbitrum.io/rpc",
       accounts: [process.env.ARBITRUM_MAINNET_PRIVATE_KEY!],
